@@ -147,6 +147,6 @@ AI Safety Layer:
 ---
 
 ## Guide
-Dr. Karuna Pandit
+Dr. Vandana b 
 
 ## Project Code: 35
