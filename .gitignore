@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+
+# Environment files (keep .env.example, ignore actual .env)
+.env
+backend/.env
+
+# Build outputs
+frontend/build/
+frontend/.cache/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Python virtual environment
+venv/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
