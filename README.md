@@ -46,10 +46,16 @@ BloodPlatform/
 ## Setup & Running
 
 ### Prerequisites
-- Node.js v18+
-- Python 3.10+
-- MongoDB (local or Atlas)
+- Node.js v18+ → https://nodejs.org
+- Python 3.10+ → https://python.org
+- MongoDB Community → https://www.mongodb.com/try/download/community
+- Git → https://git-scm.com
 
+### Clone the project
+```bash
+git clone https://github.com/Dhanush-dshetty/Blood-donation-platform.git
+cd Blood-donation-platform
+```
 ---
 
 ### 1. Backend

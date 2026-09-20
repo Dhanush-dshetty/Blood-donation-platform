@@ -7,6 +7,26 @@ const generateToken = (id, role) => {
   return jwt.sign({ id, role }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
 };
 
+// Register admin (protected — only existing admin or via seed)
+const registerAdmin = async (req, res) => {
+  try {
+    const { name, email, password, adminSecret } = req.body;
+    // Simple secret key check to prevent unauthorized admin creation
+    if (adminSecret !== (process.env.ADMIN_SECRET || 'bloodadmin2026')) {
+      return res.status(403).json({ message: 'Invalid admin secret key' });
+    }
+    const existingUser = await User.findOne({ email });
+    if (existingUser) return res.status(400).json({ message: 'Email already registered' });
+    const user = await User.create({ name, email, password, role: 'admin' });
+    res.status(201).json({
+      token: generateToken(user._id, user.role),
+      user: { id: user._id, name: user.name, email: user.email, role: user.role }
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 // Register donor
 const registerDonor = async (req, res) => {
   try {
@@ -94,4 +114,4 @@ const login = async (req, res) => {
   }
 };
 
-module.exports = { registerDonor, registerHospital, login };
+module.exports = { registerDonor, registerHospital, login, registerAdmin };

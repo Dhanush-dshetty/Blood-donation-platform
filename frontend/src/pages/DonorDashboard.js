@@ -190,6 +190,8 @@ export default function DonorDashboard() {
         </div>
         <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
           <Link to="/donor/chat" style={{ color: 'white', fontWeight: 600 }}>💬 AI Assistant</Link>
+          <Link to="/donor/history" style={{ color: 'white', fontWeight: 600 }}>📋 History</Link>
+          <Link to="/donor/map" style={{ color: 'white', fontWeight: 600 }}>🗺️ Map</Link>
           <button onClick={() => { logout(); navigate('/'); }}
             style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 6 }}>
             Logout

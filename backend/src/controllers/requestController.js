@@ -1,7 +1,9 @@
 const BloodRequest = require('../models/BloodRequest');
 const Hospital = require('../models/Hospital');
 const Donor = require('../models/Donor');
+const User = require('../models/User');
 const axios = require('axios');
+const { sendBloodRequestAlert, sendDonationConfirmation } = require('../utils/emailService');
 
 // Create a new blood request (hospital)
 const createRequest = async (req, res) => {
@@ -52,7 +54,7 @@ const createRequest = async (req, res) => {
       }
     }).limit(30);
 
-    // Emit real-time alert to each nearby donor
+    // Emit real-time alert to each nearby donor + send email
     nearbyDonors.forEach(donor => {
       io.to(`donor_${donor._id}`).emit('blood_request_alert', {
         requestId: request._id,
@@ -63,6 +65,32 @@ const createRequest = async (req, res) => {
         patientCondition
       });
     });
+
+    // Send emails to nearby donors (only for critical/high urgency)
+    if (urgencyLevel === 'critical' || urgencyLevel === 'high') {
+      const donorUsers = await User.find({
+        _id: { $in: nearbyDonors.map(d => d.user) }
+      });
+      const donorUserMap = {};
+      donorUsers.forEach(u => { donorUserMap[u._id.toString()] = u; });
+
+      nearbyDonors.forEach(donor => {
+        const donorUser = donorUserMap[donor.user.toString()];
+        if (donorUser?.email) {
+          sendBloodRequestAlert({
+            donorEmail: donorUser.email,
+            donorName: donorUser.name,
+            bloodGroup,
+            urgencyLevel,
+            hospitalName: hospital.hospitalName,
+            hospitalCity: hospital.city,
+            unitsRequired,
+            patientCondition,
+            requestId: request._id
+          }).catch(err => console.error('Email error:', err.message));
+        }
+      });
+    }
 
     // Also alert the hospital's room
     io.to(`hospital_${hospital._id}`).emit('request_created', { request });
@@ -129,6 +157,18 @@ const respondToRequest = async (req, res) => {
     // Update donor response rate
     donor.totalDonations += 1;
     await donor.save();
+
+    // Send confirmation email to donor
+    const donorUser = await User.findById(donor.user);
+    const requestWithHospital = await BloodRequest.findById(request._id).populate('hospital');
+    if (donorUser?.email) {
+      sendDonationConfirmation({
+        donorEmail: donorUser.email,
+        donorName: contactDetails?.name || donorUser.name,
+        hospitalName: requestWithHospital.hospital?.hospitalName || 'the hospital',
+        bloodGroup: request.bloodGroup
+      }).catch(err => console.error('Confirmation email error:', err.message));
+    }
 
     // Notify hospital with donor contact details
     const io = req.app.get('io');

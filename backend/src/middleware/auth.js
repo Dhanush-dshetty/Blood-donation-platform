@@ -30,4 +30,11 @@ const donorOnly = (req, res, next) => {
   next();
 };
 
-module.exports = { protect, hospitalOnly, donorOnly };
+const adminOnly = (req, res, next) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Access restricted to admins only' });
+  }
+  next();
+};
+
+module.exports = { protect, hospitalOnly, donorOnly, adminOnly };
