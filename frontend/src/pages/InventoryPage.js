@@ -121,7 +121,7 @@ export default function InventoryPage() {
               </div>
 
               <button style={styles.btn} type="submit" disabled={loading}>
-                {loading ? 'Processing...' : 'Add & Verify Unit'}
+                {loading ? 'Processing...' : 'Add and Verify Unit'}
               </button>
             </form>
 

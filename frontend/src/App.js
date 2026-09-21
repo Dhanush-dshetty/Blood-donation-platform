@@ -27,7 +27,7 @@ const PrivateRoute = ({ children, role }) => {
   const { user, loading } = useAuth();
   if (loading) return <div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>;
   if (!user) return <Navigate to="/login" />;
-  if (role && user.role !== role) return <Navigate to="/" />;
+  if (role && !role.split(',').includes(user.role)) return <Navigate to="/" />;
   return children;
 };
 
@@ -44,8 +44,8 @@ export default function App() {
         <Route path="/hospital/dashboard" element={<PrivateRoute role="hospital"><HospitalDashboard /></PrivateRoute>} />
         <Route path="/hospital/inventory" element={<PrivateRoute role="hospital"><InventoryPage /></PrivateRoute>} />
         <Route path="/hospital/requests" element={<PrivateRoute role="hospital"><RequestsPage /></PrivateRoute>} />
-        <Route path="/hospital/map" element={<PrivateRoute role="hospital"><MapPage /></PrivateRoute>} />
-        <Route path="/hospital/analytics" element={<PrivateRoute role="hospital"><AnalyticsPage /></PrivateRoute>} />
+        <Route path="/hospital/map" element={<PrivateRoute role="hospital,admin"><MapPage /></PrivateRoute>} />
+        <Route path="/hospital/analytics" element={<PrivateRoute role="hospital,admin"><AnalyticsPage /></PrivateRoute>} />
 
         {/* Donor */}
         <Route path="/donor/dashboard" element={<PrivateRoute role="donor"><DonorDashboard /></PrivateRoute>} />

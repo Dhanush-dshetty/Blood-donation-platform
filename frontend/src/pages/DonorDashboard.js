@@ -8,6 +8,53 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:5000';
 const URGENCY_COLORS = { critical: '#e74c3c', high: '#e67e22', medium: '#f39c12', low: '#27ae60' };
 
+// ── Navigation Map Modal ────────────────────────────────────────────
+function NavigationModal({ hospital, onClose }) {
+  const hospitalName = encodeURIComponent(hospital?.hospitalName || 'hospital');
+  const lat = hospital?.location?.coordinates?.[1];
+  const lng = hospital?.location?.coordinates?.[0];
+
+  // Build Google Maps directions URL
+  const mapsUrl = lat && lng && lat !== 0 && lng !== 0
+    ? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`
+    : `https://www.google.com/maps/search/${hospitalName}`;
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: 16 }}>
+      <div style={{ background: 'white', borderRadius: 16, padding: 32, width: '100%', maxWidth: 440, boxShadow: '0 8px 40px rgba(0,0,0,0.25)' }}>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#e8f8e8', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', fontSize: '2rem' }}>
+            ✓
+          </div>
+          <h2 style={{ color: '#27ae60', marginBottom: 8 }}>Response Confirmed!</h2>
+          <p style={{ color: '#666', fontSize: '0.95rem' }}>
+            The hospital has been notified. You can now get directions to reach them.
+          </p>
+        </div>
+
+        <div style={{ background: '#f8f9fa', borderRadius: 10, padding: 16, marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, color: '#333', fontSize: '1rem' }}>{hospital?.hospitalName}</div>
+          {(hospital?.city || hospital?.address) && (
+            <div style={{ color: '#666', fontSize: '0.88rem', marginTop: 4 }}>
+              {[hospital?.address, hospital?.city].filter(Boolean).join(', ')}
+            </div>
+          )}
+        </div>
+
+        <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
+          style={{ display: 'block', width: '100%', padding: '13px', background: '#1a73e8', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, textAlign: 'center', textDecoration: 'none', fontSize: '0.95rem', marginBottom: 10 }}>
+          Open Directions in Google Maps
+        </a>
+
+        <button onClick={onClose}
+          style={{ width: '100%', padding: '12px', background: '#f0f0f0', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer', color: '#555' }}>
+          Close
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Donation Contact Modal ──────────────────────────────────────────
 function DonateModal({ request, donorUser, onClose, onSubmit }) {
   const [form, setForm] = useState({
@@ -17,7 +64,6 @@ function DonateModal({ request, donorUser, onClose, onSubmit }) {
     message: ''
   });
   const [loading, setLoading] = useState(false);
-
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const handleSubmit = async (e) => {
@@ -30,56 +76,54 @@ function DonateModal({ request, donorUser, onClose, onSubmit }) {
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
       <div style={{ background: 'white', borderRadius: 16, padding: 32, width: '100%', maxWidth: 460, boxShadow: '0 8px 40px rgba(0,0,0,0.2)' }}>
-        {/* Modal Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div>
             <h2 style={{ color: '#c0392b', marginBottom: 4 }}>Confirm Donation</h2>
             <p style={{ color: '#888', fontSize: '0.9rem' }}>Your details will be sent to the hospital</p>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#888' }}>✕</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '1.4rem', cursor: 'pointer', color: '#888', lineHeight: 1 }}>×</button>
         </div>
 
         {/* Request Summary */}
         <div style={{ background: '#fff5f5', borderRadius: 10, padding: 14, marginBottom: 20, borderLeft: '4px solid #c0392b' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-            <span style={{ fontSize: '1.5rem', fontWeight: 700, color: '#c0392b' }}>{request.bloodGroup}</span>
+            <span style={{ fontSize: '1.4rem', fontWeight: 700, color: '#c0392b' }}>{request.bloodGroup}</span>
             <span style={{ background: URGENCY_COLORS[request.urgencyLevel] + '22', color: URGENCY_COLORS[request.urgencyLevel], padding: '2px 8px', borderRadius: 4, fontWeight: 600, fontSize: '0.8rem' }}>
               {request.urgencyLevel?.toUpperCase()}
             </span>
           </div>
           <div style={{ fontWeight: 700, color: '#333' }}>{request.hospital?.hospitalName}</div>
           {(request.hospital?.city || request.hospital?.address) && (
-            <div style={{ color: '#888', fontSize: '0.85rem', marginTop: 2 }}>
-              📍 {[request.hospital?.address, request.hospital?.city].filter(Boolean).join(', ')}
+            <div style={{ color: '#666', fontSize: '0.85rem', marginTop: 2 }}>
+              {[request.hospital?.address, request.hospital?.city].filter(Boolean).join(', ')}
             </div>
           )}
           <div style={{ color: '#555', fontSize: '0.9rem', marginTop: 4 }}>Needs {request.unitsRequired} unit(s)</div>
         </div>
 
-        {/* Contact Form */}
         <form onSubmit={handleSubmit}>
           <label style={{ display: 'block', fontWeight: 600, marginBottom: 5, color: '#444', fontSize: '0.9rem' }}>Full Name *</label>
           <input required value={form.name} onChange={e => set('name', e.target.value)}
-            style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid #ddd', marginBottom: 12, fontSize: '0.95rem' }}
+            style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid #ddd', marginBottom: 12, fontSize: '0.95rem', boxSizing: 'border-box' }}
             placeholder="Your full name" />
 
           <label style={{ display: 'block', fontWeight: 600, marginBottom: 5, color: '#444', fontSize: '0.9rem' }}>Phone Number *</label>
           <input required value={form.phone} onChange={e => set('phone', e.target.value)}
-            style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid #ddd', marginBottom: 12, fontSize: '0.95rem' }}
+            style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid #ddd', marginBottom: 12, fontSize: '0.95rem', boxSizing: 'border-box' }}
             placeholder="e.g. 9876543210" type="tel" />
 
           <label style={{ display: 'block', fontWeight: 600, marginBottom: 5, color: '#444', fontSize: '0.9rem' }}>Email Address *</label>
           <input required value={form.email} onChange={e => set('email', e.target.value)}
-            style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid #ddd', marginBottom: 12, fontSize: '0.95rem' }}
+            style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid #ddd', marginBottom: 12, fontSize: '0.95rem', boxSizing: 'border-box' }}
             placeholder="your@email.com" type="email" />
 
           <label style={{ display: 'block', fontWeight: 600, marginBottom: 5, color: '#444', fontSize: '0.9rem' }}>Message (optional)</label>
           <textarea value={form.message} onChange={e => set('message', e.target.value)}
-            style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid #ddd', marginBottom: 16, fontSize: '0.95rem', resize: 'vertical', minHeight: 70 }}
+            style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid #ddd', marginBottom: 16, fontSize: '0.95rem', resize: 'vertical', minHeight: 64, boxSizing: 'border-box' }}
             placeholder="e.g. I can come within 2 hours" />
 
           <p style={{ color: '#888', fontSize: '0.82rem', marginBottom: 16 }}>
-            📋 By submitting, you confirm you are eligible to donate and the hospital will contact you directly.
+            By submitting, you confirm you are eligible to donate. The hospital will contact you directly.
           </p>
 
           <div style={{ display: 'flex', gap: 10 }}>
@@ -89,7 +133,7 @@ function DonateModal({ request, donorUser, onClose, onSubmit }) {
             </button>
             <button type="submit" disabled={loading}
               style={{ flex: 2, padding: 12, background: '#c0392b', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}>
-              {loading ? 'Submitting...' : '🩸 Confirm — I Will Donate'}
+              {loading ? 'Submitting...' : 'Confirm — I Will Donate'}
             </button>
           </div>
         </form>
@@ -106,12 +150,12 @@ export default function DonorDashboard() {
   const [openRequests, setOpenRequests] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [msg, setMsg] = useState('');
-  const [selectedRequest, setSelectedRequest] = useState(null); // for modal
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [navHospital, setNavHospital] = useState(null); // for navigation modal
 
   useEffect(() => {
     fetchOpenRequests();
     fetchProfile();
-
     if (profile?._id) {
       const socket = io(SOCKET_URL);
       socket.emit('join_donor', profile._id);
@@ -146,16 +190,16 @@ export default function DonorDashboard() {
     } catch (e) {}
   };
 
-  // Called when donor submits the modal form
   const handleDonateSubmit = async (requestId, contactDetails) => {
     try {
+      const req = openRequests.find(r => r._id === requestId);
       await axios.post(`${API_URL}/requests/${requestId}/respond`, { contactDetails });
       setSelectedRequest(null);
-      setMsg('✅ Your details have been sent to the hospital! They will contact you shortly.');
+      // Show navigation modal with hospital details
+      if (req?.hospital) setNavHospital(req.hospital);
       fetchOpenRequests();
-      setTimeout(() => setMsg(''), 5000);
     } catch (err) {
-      setMsg('❌ ' + (err.response?.data?.message || 'Could not submit. Try again.'));
+      setMsg('Could not submit. ' + (err.response?.data?.message || 'Try again.'));
       setSelectedRequest(null);
       setTimeout(() => setMsg(''), 4000);
     }
@@ -167,90 +211,91 @@ export default function DonorDashboard() {
     return days >= 90;
   };
 
+  const navLinks = [
+    { to: '/donor/chat', label: 'AI Assistant' },
+    { to: '/donor/history', label: 'History' },
+    { to: '/donor/map', label: 'Map' },
+  ];
+
   return (
     <div style={{ minHeight: '100vh', background: '#f8f9fa' }}>
-      {/* Donation Modal */}
       {selectedRequest && (
-        <DonateModal
-          request={selectedRequest}
-          donorUser={user}
-          onClose={() => setSelectedRequest(null)}
-          onSubmit={handleDonateSubmit}
-        />
+        <DonateModal request={selectedRequest} donorUser={user}
+          onClose={() => setSelectedRequest(null)} onSubmit={handleDonateSubmit} />
+      )}
+      {navHospital && (
+        <NavigationModal hospital={navHospital} onClose={() => setNavHospital(null)} />
       )}
 
       {/* Header */}
-      <div style={{ background: '#c0392b', color: 'white', padding: '16px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: '1.8rem' }}>🩸</span>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>{user?.name}</div>
-            <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>Donor Portal</div>
-          </div>
+      <div style={{ background: '#c0392b', color: 'white', padding: '14px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: '1.05rem' }}>{user?.name}</div>
+          <div style={{ fontSize: '0.78rem', opacity: 0.8 }}>Donor Portal</div>
         </div>
-        <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-          <Link to="/donor/chat" style={{ color: 'white', fontWeight: 600 }}>💬 AI Assistant</Link>
-          <Link to="/donor/history" style={{ color: 'white', fontWeight: 600 }}>📋 History</Link>
-          <Link to="/donor/map" style={{ color: 'white', fontWeight: 600 }}>🗺️ Map</Link>
+        <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
+          {navLinks.map(l => (
+            <Link key={l.to} to={l.to} style={{ color: 'white', fontWeight: 600, fontSize: '0.9rem' }}>{l.label}</Link>
+          ))}
           <button onClick={() => { logout(); navigate('/'); }}
-            style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 6 }}>
+            style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: 'none', padding: '7px 14px', borderRadius: 6, cursor: 'pointer', fontSize: '0.9rem' }}>
             Logout
           </button>
         </div>
       </div>
 
-      <div style={{ padding: '32px', maxWidth: 1000, margin: '0 auto' }}>
+      <div style={{ padding: '28px 32px', maxWidth: 1000, margin: '0 auto' }}>
         {msg && (
-          <div style={{ background: msg.startsWith('❌') ? '#fdecea' : '#e8f8e8', color: msg.startsWith('❌') ? '#c0392b' : '#27ae60', padding: 14, borderRadius: 8, marginBottom: 16, fontWeight: 600 }}>
+          <div style={{ background: '#fdecea', color: '#c0392b', padding: 12, borderRadius: 8, marginBottom: 16, fontWeight: 600 }}>
             {msg}
           </div>
         )}
 
         {/* Live alerts */}
         {alerts.length > 0 && (
-          <div style={{ background: '#fdecea', border: '2px solid #c0392b', borderRadius: 8, padding: 16, marginBottom: 24 }}>
-            <strong>🚨 Emergency Blood Request Nearby!</strong>
+          <div style={{ background: '#fdecea', border: '2px solid #c0392b', borderRadius: 8, padding: 14, marginBottom: 20 }}>
+            <strong style={{ color: '#c0392b' }}>Emergency Blood Request Nearby</strong>
             {alerts.slice(0, 2).map((a, i) => (
-              <div key={i} style={{ marginTop: 8, fontSize: '0.95rem' }}>
-                [{a.time}] <strong>{a.bloodGroup}</strong> needed at <strong>{a.hospitalName}</strong> — Urgency: {a.urgencyLevel}
+              <div key={i} style={{ marginTop: 6, fontSize: '0.9rem', color: '#555' }}>
+                [{a.time}] <strong>{a.bloodGroup}</strong> needed at <strong>{a.hospitalName}</strong> — {a.urgencyLevel}
               </div>
             ))}
           </div>
         )}
 
-        {/* Profile Card */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 24, marginBottom: 24 }}>
+        {/* Profile + Stats */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 20, marginBottom: 20 }}>
           <div style={{ background: 'white', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', textAlign: 'center' }}>
-            <div style={{ width: 72, height: 72, borderRadius: '50%', background: '#c0392b', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', margin: '0 auto 12px' }}>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#c0392b', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem', fontWeight: 700, margin: '0 auto 10px' }}>
               {user?.name?.charAt(0)}
             </div>
-            <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>{user?.name}</div>
-            <div style={{ color: '#888', marginBottom: 12 }}>{user?.email}</div>
+            <div style={{ fontWeight: 700 }}>{user?.name}</div>
+            <div style={{ color: '#888', fontSize: '0.85rem', marginBottom: 10 }}>{user?.email}</div>
             <div style={{ fontSize: '2rem', fontWeight: 700, color: '#c0392b' }}>{donorProfile?.bloodGroup}</div>
-            <div style={{ color: '#888', marginBottom: 16 }}>Blood Group</div>
-            <div style={{ marginBottom: 8 }}>
-              <span style={{ background: donorProfile?.isAvailable ? '#e8f8e8' : '#fdecea', color: donorProfile?.isAvailable ? '#27ae60' : '#c0392b', padding: '4px 12px', borderRadius: 20, fontWeight: 600 }}>
-                {donorProfile?.isAvailable ? '✅ Available' : '❌ Unavailable'}
+            <div style={{ color: '#888', fontSize: '0.8rem', marginBottom: 14 }}>Blood Group</div>
+            <div style={{ marginBottom: 10 }}>
+              <span style={{ background: donorProfile?.isAvailable ? '#e8f8e8' : '#fdecea', color: donorProfile?.isAvailable ? '#27ae60' : '#c0392b', padding: '4px 14px', borderRadius: 20, fontWeight: 600, fontSize: '0.85rem' }}>
+                {donorProfile?.isAvailable ? 'Available' : 'Unavailable'}
               </span>
             </div>
             <button onClick={toggleAvailability}
-              style={{ width: '100%', padding: 10, background: donorProfile?.isAvailable ? '#fdecea' : '#e8f8e8', color: donorProfile?.isAvailable ? '#c0392b' : '#27ae60', border: 'none', borderRadius: 8, fontWeight: 600, marginTop: 8 }}>
+              style={{ width: '100%', padding: '9px', background: donorProfile?.isAvailable ? '#fdecea' : '#e8f8e8', color: donorProfile?.isAvailable ? '#c0392b' : '#27ae60', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: '0.88rem' }}>
               {donorProfile?.isAvailable ? 'Mark Unavailable' : 'Mark Available'}
             </button>
           </div>
 
           <div style={{ background: 'white', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-            <h3 style={{ marginBottom: 16 }}>Your Donation Stats</h3>
+            <h3 style={{ marginBottom: 16, fontSize: '1rem' }}>Donation Stats</h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               {[
                 { label: 'Total Donations', value: donorProfile?.totalDonations || 0 },
                 { label: 'Response Rate', value: `${donorProfile?.responseRate || 100}%` },
                 { label: 'Area', value: donorProfile?.area || donorProfile?.hub || 'Not set' },
-                { label: 'Can Donate Now', value: canDonate() ? '✅ Yes' : '⏳ Wait 90 days' },
+                { label: 'Can Donate Now', value: canDonate() ? 'Yes' : 'Wait 90 days' },
               ].map(s => (
-                <div key={s.label} style={{ background: '#f8f9fa', borderRadius: 8, padding: 16 }}>
+                <div key={s.label} style={{ background: '#f8f9fa', borderRadius: 8, padding: 14 }}>
                   <div style={{ fontWeight: 700, fontSize: '1.1rem', color: '#c0392b' }}>{s.value}</div>
-                  <div style={{ color: '#888', fontSize: '0.85rem' }}>{s.label}</div>
+                  <div style={{ color: '#888', fontSize: '0.82rem' }}>{s.label}</div>
                 </div>
               ))}
             </div>
@@ -259,47 +304,41 @@ export default function DonorDashboard() {
 
         {/* Open Requests */}
         <div style={{ background: 'white', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-          <h3 style={{ marginBottom: 16 }}>🩸 Active Blood Requests Near You</h3>
+          <h3 style={{ marginBottom: 16, fontSize: '1rem' }}>Active Blood Requests</h3>
           {openRequests.length === 0 ? (
-            <p style={{ color: '#999' }}>No active requests right now. You'll be notified when there's a match.</p>
+            <p style={{ color: '#999' }}>No active requests right now. You will be notified when there is a match.</p>
           ) : (
             openRequests.map(req => (
               <div key={req._id} style={{ border: '1px solid #eee', borderRadius: 10, padding: 16, marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                 <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '1.8rem', fontWeight: 700, color: '#c0392b' }}>{req.bloodGroup}</span>
-                    <span style={{ background: URGENCY_COLORS[req.urgencyLevel] + '22', color: URGENCY_COLORS[req.urgencyLevel], padding: '3px 10px', borderRadius: 4, fontWeight: 600, fontSize: '0.85rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '1.6rem', fontWeight: 700, color: '#c0392b' }}>{req.bloodGroup}</span>
+                    <span style={{ background: URGENCY_COLORS[req.urgencyLevel] + '22', color: URGENCY_COLORS[req.urgencyLevel], padding: '2px 8px', borderRadius: 4, fontWeight: 600, fontSize: '0.82rem' }}>
                       {req.urgencyLevel?.toUpperCase()}
                     </span>
                   </div>
-                  <div style={{ marginTop: 6, color: '#333', fontWeight: 600 }}>
-                    {req.hospital?.hospitalName}
-                  </div>
-                  {/* Location display */}
+                  <div style={{ marginTop: 5, color: '#333', fontWeight: 600 }}>{req.hospital?.hospitalName}</div>
                   {(req.hospital?.city || req.hospital?.address) && (
-                    <div style={{ color: '#e67e22', fontSize: '0.88rem', marginTop: 3 }}>
-                      📍 {[req.hospital?.address, req.hospital?.city].filter(Boolean).join(', ')}
+                    <div style={{ color: '#666', fontSize: '0.85rem', marginTop: 2 }}>
+                      {[req.hospital?.address, req.hospital?.city].filter(Boolean).join(', ')}
                     </div>
                   )}
-                  <div style={{ color: '#666', fontSize: '0.9rem', marginTop: 4 }}>
+                  <div style={{ color: '#666', fontSize: '0.88rem', marginTop: 4 }}>
                     Needs <strong>{req.unitsRequired} unit(s)</strong>
-                    {req.unitsFulfilled > 0 && <span style={{ color: '#27ae60' }}> · {req.unitsFulfilled} already fulfilled</span>}
+                    {req.unitsFulfilled > 0 && <span style={{ color: '#27ae60' }}> · {req.unitsFulfilled} fulfilled</span>}
                   </div>
-                  {req.patientCondition && (
-                    <div style={{ color: '#888', fontSize: '0.85rem', marginTop: 3 }}>📋 {req.patientCondition}</div>
-                  )}
-                  <div style={{ color: '#aaa', fontSize: '0.8rem', marginTop: 4 }}>{new Date(req.createdAt).toLocaleString()}</div>
+                  {req.patientCondition && <div style={{ color: '#888', fontSize: '0.82rem', marginTop: 2 }}>{req.patientCondition}</div>}
+                  <div style={{ color: '#bbb', fontSize: '0.78rem', marginTop: 4 }}>{new Date(req.createdAt).toLocaleString()}</div>
                 </div>
-
                 <div style={{ flexShrink: 0 }}>
                   {canDonate() && donorProfile?.isAvailable ? (
                     <button onClick={() => setSelectedRequest(req)}
-                      style={{ padding: '10px 20px', background: '#c0392b', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                      style={{ padding: '10px 18px', background: '#c0392b', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}>
                       I Can Donate
                     </button>
                   ) : (
-                    <span style={{ color: '#aaa', fontSize: '0.85rem', textAlign: 'center', display: 'block' }}>
-                      {!canDonate() ? '⏳ Not eligible yet' : '❌ Set available first'}
+                    <span style={{ color: '#aaa', fontSize: '0.82rem', display: 'block', textAlign: 'center' }}>
+                      {!canDonate() ? 'Not eligible yet' : 'Set available first'}
                     </span>
                   )}
                 </div>

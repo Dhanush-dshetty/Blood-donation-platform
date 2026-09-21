@@ -110,8 +110,8 @@ export default function HospitalDashboard() {
         <div style={{ display: 'flex', gap: 16 }}>
           <Link to="/hospital/inventory" style={{ color: 'white', fontWeight: 600 }}>Inventory</Link>
           <Link to="/hospital/requests" style={{ color: 'white', fontWeight: 600 }}>Requests</Link>
-          <Link to="/hospital/map" style={{ color: 'white', fontWeight: 600 }}>🗺️ Map</Link>
-          <Link to="/hospital/analytics" style={{ color: 'white', fontWeight: 600 }}>📊 Analytics</Link>
+          <Link to="/hospital/map" style={{ color: 'white', fontWeight: 600 }}>Map</Link>
+          <Link to="/hospital/analytics" style={{ color: 'white', fontWeight: 600 }}>Analytics</Link>
           <button onClick={() => { logout(); navigate('/'); }} style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 6 }}>Logout</button>
         </div>
       </div>
@@ -183,7 +183,7 @@ export default function HospitalDashboard() {
                 <input style={{ width: '100%', padding: 10, borderRadius: 6, border: '1px solid #ddd', marginBottom: 10 }}
                   value={reqForm.patientCondition} onChange={e => setReqForm(f => ({ ...f, patientCondition: e.target.value }))}
                   placeholder="Patient condition (optional)" />
-                <button type="submit" disabled={loading} style={{ width: '100%', padding: 12, background: '#c0392b', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700 }}>
+                <button type="submit" disabled={loading} style={{ width: '100%', padding: 12, background: '#c0392b', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}>
                   {loading ? 'Sending...' : 'Alert Donors Now'}
                 </button>
               </form>
