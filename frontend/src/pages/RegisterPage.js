@@ -3,7 +3,6 @@ import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -116,6 +115,10 @@ export default function RegisterPage() {
       setMapCenter([lat, lng]);
       setPinLat(lat);
       setPinLng(lng);
+      // Auto-open map for hospitals to force exact location selection
+      if (role === 'hospital') {
+        setShowMap(true);
+      }
     }
   };
 
@@ -130,6 +133,12 @@ export default function RegisterPage() {
     e.preventDefault();
     if (!selectedState || !selectedArea) {
       setError('Please select your state and city');
+      return;
+    }
+    // For hospitals, require exact location pinpoint
+    if (role === 'hospital' && (!pinLat || !pinLng || pinLat === 0 || pinLng === 0)) {
+      setError('Please pinpoint your exact hospital location on the map');
+      setShowMap(true);
       return;
     }
     setError('');
@@ -221,14 +230,14 @@ export default function RegisterPage() {
             {role === 'hospital' && selectedArea && (
               <div>
                 <button type="button" onClick={() => setShowMap(v => !v)}
-                  style={{ padding: '8px 16px', background: showMap ? '#eee' : '#1a73e8', color: showMap ? '#555' : 'white', border: 'none', borderRadius: 7, fontWeight: 600, cursor: 'pointer', fontSize: '0.88rem', marginTop: 4 }}>
-                  {showMap ? 'Hide Map' : 'Pinpoint Exact Location on Map'}
+                  style={{ padding: '8px 16px', background: showMap ? '#eee' : '#c0392b', color: showMap ? '#555' : 'white', border: 'none', borderRadius: 7, fontWeight: 600, cursor: 'pointer', fontSize: '0.88rem', marginTop: 4 }}>
+                  {showMap ? 'Hide Map' : '📍 Pinpoint Exact Location (Required)'}
                 </button>
 
                 {showMap && (
                   <div style={{ marginTop: 10 }}>
-                    <p style={{ color: '#666', fontSize: '0.82rem', marginBottom: 6 }}>
-                      Click on the map to set your hospital's exact location.
+                    <p style={{ color: '#c0392b', fontSize: '0.85rem', marginBottom: 6, fontWeight: 600 }}>
+                      ⚠️ Click on the map to mark your hospital's exact location (Required for donor navigation)
                     </p>
                     <div style={{ height: 300, borderRadius: 8, overflow: 'hidden', border: '1.5px solid #ddd' }}>
                       <MapContainer center={mapCenter} zoom={14} style={{ height: '100%', width: '100%' }}>

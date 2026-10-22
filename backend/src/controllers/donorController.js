@@ -1,5 +1,35 @@
 const Donor = require('../models/Donor');
 
+// City coordinates fallback (for donors with [0,0] coordinates)
+const CITY_COORDS = {
+  'Mangalore': [74.8431, 12.8703], 'Udupi': [74.7421, 13.3409],
+  'Bangalore': [77.5946, 12.9716], 'Mysore': [76.6394, 12.2958],
+  'Mumbai': [72.8777, 19.0760], 'Pune': [73.8567, 18.5204],
+  'Chennai': [80.2707, 13.0827], 'Coimbatore': [76.9558, 11.0168],
+  'Hyderabad': [78.4867, 17.3850], 'Kochi': [76.2673, 9.9312],
+  'Thiruvananthapuram': [76.9366, 8.5241], 'Kozhikode': [75.7804, 11.2588],
+  'Visakhapatnam': [83.2185, 17.6868], 'Ahmedabad': [72.5714, 23.0225],
+  'Jaipur': [75.7873, 26.9124], 'Lucknow': [80.9462, 26.8467],
+  'Kolkata': [88.3639, 22.5726], 'New Delhi': [77.2090, 28.6139],
+  'Delhi': [77.2090, 28.6139], 'Patna': [85.1376, 25.5941],
+  'Bhopal': [77.4126, 23.2599], 'Indore': [75.8577, 22.7196],
+};
+
+// Helper: Calculate distance between two coordinates (Haversine formula)
+const calculateDistance = (coords1, coords2) => {
+  const [lon1, lat1] = coords1;
+  const [lon2, lat2] = coords2;
+  
+  const R = 6371; // Radius of Earth in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c; // Distance in km
+};
+
 // Get donor profile
 const getDonorProfile = async (req, res) => {
   try {
@@ -92,22 +122,36 @@ const findNearbyDonors = async (req, res) => {
     const compatibleGroups = bloodGroup ? compatibilityMap[bloodGroup] || [bloodGroup] : null;
 
     const filter = {
-      isAvailable: true,
-      location: {
-        $near: {
-          $geometry: { type: 'Point', coordinates: [parseFloat(longitude), parseFloat(latitude)] },
-          $maxDistance: parseFloat(maxDistanceKm) * 1000
-        }
-      }
+      isAvailable: true
     };
 
     if (compatibleGroups) filter.bloodGroup = { $in: compatibleGroups };
 
-    const donors = await Donor.find(filter)
+    // Get all potential donors first
+    const allDonors = await Donor.find(filter)
       .populate('user', 'name email phone')
-      .limit(50);
+      .limit(200);
 
-    res.json({ count: donors.length, donors });
+    // Filter by distance manually with coordinate fallback
+    const nearbyDonors = allDonors
+      .map(donor => {
+        let donorCoords = donor.location?.coordinates || [0, 0];
+        if (donorCoords[0] === 0 && donorCoords[1] === 0) {
+          const cityCoords = CITY_COORDS[donor.area] || CITY_COORDS['Bangalore'];
+          donorCoords = cityCoords;
+        }
+        const distance = calculateDistance([parseFloat(longitude), parseFloat(latitude)], donorCoords);
+        return { donor, distance };
+      })
+      .filter(item => item.distance <= parseFloat(maxDistanceKm))
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, 50)
+      .map(item => ({
+        ...item.donor.toObject(),
+        distanceKm: Math.round(item.distance * 10) / 10
+      }));
+
+    res.json({ count: nearbyDonors.length, donors: nearbyDonors });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

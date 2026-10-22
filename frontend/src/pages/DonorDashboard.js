@@ -148,6 +148,7 @@ export default function DonorDashboard() {
   const navigate = useNavigate();
   const [donorProfile, setDonorProfile] = useState(profile);
   const [openRequests, setOpenRequests] = useState([]);
+  const [matchingInfo, setMatchingInfo] = useState(null);
   const [alerts, setAlerts] = useState([]);
   const [msg, setMsg] = useState('');
   const [selectedRequest, setSelectedRequest] = useState(null);
@@ -177,7 +178,18 @@ export default function DonorDashboard() {
   const fetchOpenRequests = async () => {
     try {
       const res = await axios.get(`${API_URL}/requests/open`);
-      setOpenRequests(res.data);
+      // Response now includes matching info from backend
+      if (res.data.requests) {
+        setOpenRequests(res.data.requests || []);
+        setMatchingInfo({
+          total: res.data.totalMatches || 0,
+          bloodGroup: res.data.donorBloodGroup,
+          location: res.data.donorLocation
+        });
+      } else {
+        // Fallback for old format
+        setOpenRequests(res.data || []);
+      }
     } catch (e) {}
   };
 
@@ -254,10 +266,22 @@ export default function DonorDashboard() {
         {/* Live alerts */}
         {alerts.length > 0 && (
           <div style={{ background: '#fdecea', border: '2px solid #c0392b', borderRadius: 8, padding: 14, marginBottom: 20 }}>
-            <strong style={{ color: '#c0392b' }}>Emergency Blood Request Nearby</strong>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <span style={{ fontSize: '1.3rem' }}>🚨</span>
+              <strong style={{ color: '#c0392b', fontSize: '1.05rem' }}>Emergency Blood Request Nearby!</strong>
+            </div>
             {alerts.slice(0, 2).map((a, i) => (
-              <div key={i} style={{ marginTop: 6, fontSize: '0.9rem', color: '#555' }}>
-                [{a.time}] <strong>{a.bloodGroup}</strong> needed at <strong>{a.hospitalName}</strong> — {a.urgencyLevel}
+              <div key={i} style={{ marginTop: 6, fontSize: '0.9rem', color: '#555', padding: '8px 0', borderTop: i > 0 ? '1px solid #f0d0d0' : 'none' }}>
+                <div style={{ fontWeight: 600, color: '#c0392b' }}>
+                  {a.bloodGroup} needed · {a.urgencyLevel?.toUpperCase()} urgency
+                  {a.distanceKm && <span style={{ color: '#2980b9', marginLeft: 8 }}>📍 {a.distanceKm} km away</span>}
+                </div>
+                <div style={{ fontSize: '0.85rem', marginTop: 2 }}>
+                  {a.hospitalName} {a.hospitalCity && `· ${a.hospitalCity}`}
+                </div>
+                <div style={{ fontSize: '0.78rem', color: '#888', marginTop: 2 }}>
+                  [{a.time}]
+                </div>
               </div>
             ))}
           </div>
@@ -304,9 +328,32 @@ export default function DonorDashboard() {
 
         {/* Open Requests */}
         <div style={{ background: 'white', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-          <h3 style={{ marginBottom: 16, fontSize: '1rem' }}>Active Blood Requests</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h3 style={{ fontSize: '1rem', margin: 0 }}>
+              Blood Requests Matched for You
+              {matchingInfo && (
+                <span style={{ color: '#27ae60', fontWeight: 700, marginLeft: 8 }}>
+                  ({matchingInfo.total} nearby)
+                </span>
+              )}
+            </h3>
+            {matchingInfo && (
+              <div style={{ fontSize: '0.82rem', color: '#888' }}>
+                Your Blood: <strong style={{ color: '#c0392b' }}>{matchingInfo.bloodGroup}</strong> · 
+                Location: <strong>{matchingInfo.location}</strong> · 
+                Within 20km radius
+              </div>
+            )}
+          </div>
+          
           {openRequests.length === 0 ? (
-            <p style={{ color: '#999' }}>No active requests right now. You will be notified when there is a match.</p>
+            <div style={{ textAlign: 'center', padding: '30px 0', color: '#999' }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: 10 }}>✓</div>
+              <div>No matching requests right now.</div>
+              <div style={{ fontSize: '0.85rem', marginTop: 6 }}>
+                You'll be notified instantly when a hospital nearby needs your blood group.
+              </div>
+            </div>
           ) : (
             openRequests.map(req => (
               <div key={req._id} style={{ border: '1px solid #eee', borderRadius: 10, padding: 16, marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
@@ -316,6 +363,11 @@ export default function DonorDashboard() {
                     <span style={{ background: URGENCY_COLORS[req.urgencyLevel] + '22', color: URGENCY_COLORS[req.urgencyLevel], padding: '2px 8px', borderRadius: 4, fontWeight: 600, fontSize: '0.82rem' }}>
                       {req.urgencyLevel?.toUpperCase()}
                     </span>
+                    {req.distanceKm !== undefined && (
+                      <span style={{ background: '#e8f4f8', color: '#2980b9', padding: '2px 8px', borderRadius: 4, fontWeight: 600, fontSize: '0.82rem' }}>
+                        📍 {req.distanceKm} km away
+                      </span>
+                    )}
                   </div>
                   <div style={{ marginTop: 5, color: '#333', fontWeight: 600 }}>{req.hospital?.hospitalName}</div>
                   {(req.hospital?.city || req.hospital?.address) && (

@@ -38,9 +38,18 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
+  console.log('LandingPage rendered, user:', user);
+
   const handleDashboard = () => {
-    if (user) navigate(user.role === 'hospital' ? '/hospital/dashboard' : '/donor/dashboard');
-    else navigate('/login');
+    console.log('Button clicked! User:', user);
+    if (user) {
+      const route = user.role === 'hospital' ? '/hospital/dashboard' : user.role === 'admin' ? '/admin' : '/donor/dashboard';
+      console.log('Navigating to:', route);
+      navigate(route);
+    } else {
+      console.log('Navigating to login');
+      navigate('/login');
+    }
   };
 
   return (
@@ -53,12 +62,34 @@ export default function LandingPage() {
           Every transfusion safe. Powered by AI.
         </p>
         <div style={styles.btnRow}>
-          <button style={{ ...styles.btn, background: 'white', color: '#c0392b' }} onClick={handleDashboard}>
+          <button 
+            style={{ 
+              ...styles.btn, 
+              background: 'white', 
+              color: '#c0392b',
+              position: 'relative',
+              zIndex: 1000
+            }} 
+            onClick={handleDashboard}
+            onMouseDown={() => console.log('Mouse down on button')}
+          >
             {user ? 'Go to Dashboard' : 'Login'}
           </button>
           {!user && (
-            <button style={{ ...styles.btn, background: 'transparent', color: 'white', border: '2px solid white' }}
-              onClick={() => navigate('/register')}>
+            <button 
+              style={{ 
+                ...styles.btn, 
+                background: 'transparent', 
+                color: 'white', 
+                border: '2px solid white',
+                position: 'relative',
+                zIndex: 1000
+              }}
+              onClick={() => {
+                console.log('Register clicked');
+                navigate('/register');
+              }}
+            >
               Register
             </button>
           )}

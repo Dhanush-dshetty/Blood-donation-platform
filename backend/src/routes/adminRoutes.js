@@ -6,6 +6,8 @@ const Donor = require('../models/Donor');
 const Hospital = require('../models/Hospital');
 const BloodRequest = require('../models/BloodRequest');
 const BloodInventory = require('../models/BloodInventory');
+const BloodUnit = require('../models/BloodUnit');
+const SafetyVerification = require('../models/SafetyVerification');
 
 // ── Platform-wide stats ───────────────────────────────────────────
 router.get('/stats', protect, adminOnly, async (req, res) => {
@@ -123,6 +125,103 @@ router.delete('/users/:id', protect, adminOnly, async (req, res) => {
   try {
     await User.findByIdAndDelete(req.params.id);
     res.json({ message: 'User deleted' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ── Blood Safety Stats ────────────────────────────────────────────
+router.get('/blood-safety-stats', protect, adminOnly, async (req, res) => {
+  try {
+    const [
+      totalUnits,
+      quarantineUnits,
+      availableUnits,
+      rejectedUnits,
+      expiredUnits,
+      verifiedSafeUnits,
+      totalVerifications
+    ] = await Promise.all([
+      BloodUnit.countDocuments(),
+      BloodUnit.countDocuments({ status: 'quarantine' }),
+      BloodUnit.countDocuments({ status: 'available' }),
+      BloodUnit.countDocuments({ status: 'rejected' }),
+      BloodUnit.countDocuments({ status: 'expired' }),
+      BloodUnit.countDocuments({ verifiedSafe: true }),
+      SafetyVerification.countDocuments()
+    ]);
+
+    // Units by status
+    const statusBreakdown = await BloodUnit.aggregate([
+      { $group: { _id: '$status', count: { $sum: 1 } } }
+    ]);
+
+    // Units by blood group
+    const bloodGroupBreakdown = await BloodUnit.aggregate([
+      { $group: { _id: '$bloodGroup', count: { $sum: 1 } } },
+      { $sort: { count: -1 } }
+    ]);
+
+    // Units by component type
+    const componentBreakdown = await BloodUnit.aggregate([
+      { $group: { _id: '$componentType', count: { $sum: 1 } } }
+    ]);
+
+    // Verification outcomes
+    const verificationOutcomes = await SafetyVerification.aggregate([
+      { $group: { _id: '$outcome', count: { $sum: 1 } } }
+    ]);
+
+    // Units expiring soon (next 7 days)
+    const sevenDaysFromNow = new Date();
+    sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+    const expiringSoon = await BloodUnit.countDocuments({
+      status: 'available',
+      expiryDate: { $gte: new Date(), $lte: sevenDaysFromNow }
+    });
+
+    // Safety test pass rate
+    const unitsWithAllTests = await BloodUnit.countDocuments({
+      'safetyTests.hiv.result': { $ne: 'pending' },
+      'safetyTests.hepatitisB.result': { $ne: 'pending' },
+      'safetyTests.hepatitisC.result': { $ne: 'pending' },
+      'safetyTests.syphilis.result': { $ne: 'pending' },
+      'safetyTests.malaria.result': { $ne: 'pending' }
+    });
+
+    const safetyPassRate = unitsWithAllTests > 0 
+      ? Math.round((verifiedSafeUnits / unitsWithAllTests) * 100)
+      : 0;
+
+    res.json({
+      totalUnits,
+      quarantineUnits,
+      availableUnits,
+      rejectedUnits,
+      expiredUnits,
+      verifiedSafeUnits,
+      totalVerifications,
+      expiringSoon,
+      safetyPassRate,
+      statusBreakdown,
+      bloodGroupBreakdown,
+      componentBreakdown,
+      verificationOutcomes
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ── All blood units (admin view) ──────────────────────────────────
+router.get('/blood-units', protect, adminOnly, async (req, res) => {
+  try {
+    const units = await BloodUnit.find()
+      .populate('hospital', 'hospitalName')
+      .populate('donorId', 'bloodGroup')
+      .sort({ createdAt: -1 })
+      .limit(100);
+    res.json(units);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

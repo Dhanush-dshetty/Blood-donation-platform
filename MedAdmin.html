@@ -1,0 +1,1376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>MedAdmin — Emergency Medication System</title>
+<style>
+  /* ─── Reset & Base ──────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:        #0d1117;
+    --surface:   #161b22;
+    --surface2:  #21262d;
+    --border:    #30363d;
+    --text:      #e6edf3;
+    --muted:     #8b949e;
+    --accent:    #1f6feb;
+
+    /* Risk tiers */
+    --low:       #238636;
+    --low-bg:    #0d2a12;
+    --low-glow:  rgba(35,134,54,0.35);
+    --med:       #d29922;
+    --med-bg:    #2e1f00;
+    --med-glow:  rgba(210,153,34,0.35);
+    --high:      #da3633;
+    --high-bg:   #3a0a09;
+    --high-glow: rgba(218,54,51,0.40);
+
+    --radius:    12px;
+    --radius-lg: 18px;
+    --font:      'Segoe UI', system-ui, -apple-system, sans-serif;
+  }
+
+  html, body { height: 100%; }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  /* ─── Screen management ─────────────────────────────────────────── */
+  .screen {
+    display: none;
+    flex-direction: column;
+    flex: 1;
+    overflow-y: auto;
+    padding: 0;
+  }
+  .screen.active { display: flex; }
+
+  /* ─── Top bar ───────────────────────────────────────────────────── */
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    min-height: 62px;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 12px; }
+  .topbar-title { font-size: 1.1rem; font-weight: 700; letter-spacing: 0.5px; }
+  .topbar-sub { font-size: 0.78rem; color: var(--muted); margin-top: 1px; }
+  .badge-emergency {
+    background: var(--high);
+    color: #fff;
+    font-size: 0.68rem;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 4px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    animation: pulse-badge 1.8s ease-in-out infinite;
+  }
+  @keyframes pulse-badge {
+    0%,100% { opacity: 1; }
+    50%      { opacity: 0.6; }
+  }
+  .btn-back {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 14px;
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+    transition: background 0.15s;
+  }
+  .btn-back:hover { background: var(--border); }
+
+  /* Clock */
+  #clock {
+    font-size: 1.1rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+    letter-spacing: 1px;
+  }
+
+  /* ─── Buttons ────────────────────────────────────────────────────── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 22px;
+    border-radius: var(--radius);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: filter 0.15s, transform 0.08s;
+    user-select: none;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { filter: brightness(1.15); }
+  .btn-danger  { background: var(--high);   color: #fff; }
+  .btn-danger:hover  { filter: brightness(1.1); }
+  .btn-success { background: var(--low);    color: #fff; }
+  .btn-success:hover { filter: brightness(1.1); }
+  .btn-ghost   { background: var(--surface2); border: 1px solid var(--border); color: var(--text); }
+  .btn-ghost:hover { background: var(--border); }
+  .btn-full { width: 100%; }
+  .btn-lg { padding: 18px 24px; font-size: 1.1rem; min-height: 60px; }
+
+  /* ─── Cards ──────────────────────────────────────────────────────── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+  }
+  .card + .card { margin-top: 12px; }
+
+  /* ─── Form elements ──────────────────────────────────────────────── */
+  .input-wrap { display: flex; flex-direction: column; gap: 6px; }
+  .input-wrap label { font-size: 0.82rem; color: var(--muted); font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
+  .input-field {
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    color: var(--text);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    font-size: 1.05rem;
+    outline: none;
+    transition: border-color 0.15s;
+    width: 100%;
+  }
+  .input-field:focus { border-color: var(--accent); }
+  .input-field::placeholder { color: var(--muted); }
+
+  /* ─── SCREEN 1 — Patient Identification ─────────────────────────── */
+  #screen-patient .content {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-width: 540px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .scan-zone {
+    background: var(--surface2);
+    border: 2px dashed var(--accent);
+    border-radius: var(--radius-lg);
+    padding: 36px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .scan-zone:hover { background: #1c2230; border-color: #58a6ff; }
+  .scan-zone svg { opacity: 0.7; }
+  .scan-zone span { font-size: 1rem; color: var(--muted); }
+  .scan-zone strong { font-size: 1.1rem; color: var(--text); }
+
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+  .divider::before, .divider::after {
+    content:''; flex: 1; height: 1px; background: var(--border);
+  }
+
+  .recent-list { display: flex; flex-direction: column; gap: 8px; }
+  .recent-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .recent-item:hover { background: var(--border); border-color: var(--accent); }
+  .recent-item-info { display: flex; flex-direction: column; gap: 2px; }
+  .recent-item-name { font-weight: 700; font-size: 1rem; }
+  .recent-item-meta { font-size: 0.78rem; color: var(--muted); }
+  .recent-item-arrow { color: var(--muted); font-size: 1.2rem; }
+
+  /* ─── SCREEN 2 — Medication Selection ───────────────────────────── */
+  #screen-medication .content {
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  /* Patient banner at top */
+  .patient-banner {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .patient-banner-name { font-weight: 700; font-size: 1rem; }
+  .patient-banner-meta { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+  .allergy-tag {
+    background: var(--high-bg);
+    border: 1px solid var(--high);
+    color: var(--high);
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+
+  /* Search bar */
+  .search-wrap { position: relative; }
+  .search-wrap svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+  .search-wrap .input-field { padding-left: 44px; }
+
+  /* Risk legend */
+  .risk-legend {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+  .legend-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* Category headers */
+  .cat-header {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    padding: 8px 0 4px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+  }
+
+  /* Med grid */
+  .med-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 10px;
+  }
+
+  .med-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 16px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    position: relative;
+    transition: border-color 0.15s, box-shadow 0.15s, transform 0.08s;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    min-height: 96px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .med-card:active { transform: scale(0.97); }
+
+  /* Risk tier styling */
+  .med-card.risk-low  { border-color: var(--low);  background: var(--low-bg);  }
+  .med-card.risk-med  { border-color: var(--med);  background: var(--med-bg);  }
+  .med-card.risk-high { border-color: var(--high); background: var(--high-bg); }
+  .med-card.risk-low:hover  { box-shadow: 0 0 0 3px var(--low-glow);  }
+  .med-card.risk-med:hover  { box-shadow: 0 0 0 3px var(--med-glow);  }
+  .med-card.risk-high:hover { box-shadow: 0 0 0 3px var(--high-glow); }
+
+  .med-name {
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    line-height: 1.2;
+  }
+  /* Highlight the differing part of similar-named drugs */
+  .med-name .diff { text-decoration: underline; text-decoration-style: wavy; text-decoration-color: #f0c040; }
+
+  .med-generic { font-size: 0.78rem; color: var(--muted); margin-top: 3px; }
+  .med-dose    { font-size: 0.82rem; font-weight: 600; margin-top: 6px; }
+
+  .risk-low  .med-dose { color: #3fb950; }
+  .risk-med  .med-dose { color: #e3b341; }
+  .risk-high .med-dose { color: #f85149; }
+
+  .med-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 0.62rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    padding: 2px 7px;
+    border-radius: 4px;
+  }
+  .risk-low  .med-badge { background: var(--low);  color: #fff; }
+  .risk-med  .med-badge { background: var(--med);  color: #000; }
+  .risk-high .med-badge { background: var(--high); color: #fff; }
+
+  /* Similar-name warning strip */
+  .similar-warn {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #e3b341;
+    background: rgba(210,153,34,0.12);
+    border: 1px solid rgba(210,153,34,0.3);
+    border-radius: 4px;
+    padding: 3px 6px;
+    margin-top: 6px;
+    display: none;
+  }
+  .med-card.has-lookalike .similar-warn { display: block; }
+
+  /* Allergy warning overlay */
+  .med-card.contraindicated {
+    opacity: 0.45;
+    pointer-events: none;
+  }
+  .med-card.contraindicated::after {
+    content: '⛔ CONTRAINDICATED';
+    position: absolute;
+    inset: 0;
+    background: rgba(218,54,51,0.18);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem; font-weight: 800; color: var(--high);
+    border-radius: var(--radius);
+  }
+
+  /* ─── SCREEN 3 — Confirm / Dose Entry ───────────────────────────── */
+  #screen-confirm .content {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-width: 540px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .confirm-patient-strip {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+  .confirm-patient-strip .avatar {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem; font-weight: 800; flex-shrink: 0;
+  }
+
+  .confirm-med-card {
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .confirm-med-card.risk-low  { background: var(--low-bg);  border: 2px solid var(--low);  }
+  .confirm-med-card.risk-med  { background: var(--med-bg);  border: 2px solid var(--med);  }
+  .confirm-med-card.risk-high { background: var(--high-bg); border: 2px solid var(--high); }
+  .confirm-med-name { font-size: 1.6rem; font-weight: 900; letter-spacing: 0.5px; }
+  .confirm-med-info { font-size: 0.9rem; color: var(--muted); }
+  .risk-badge-large {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    width: fit-content;
+  }
+  .risk-low  .risk-badge-large { background: var(--low);  color: #fff; }
+  .risk-med  .risk-badge-large { background: var(--med);  color: #000; }
+  .risk-high .risk-badge-large { background: var(--high); color: #fff; }
+
+  /* Route selector */
+  .route-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .route-btn {
+    background: var(--surface2);
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text);
+    cursor: pointer;
+    text-align: center;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .route-btn.selected { border-color: var(--accent); background: rgba(31,111,235,0.15); color: #58a6ff; }
+
+  /* Checklist */
+  .checklist { display: flex; flex-direction: column; gap: 8px; }
+  .check-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+    user-select: none;
+  }
+  .check-item.checked { border-color: var(--low); background: rgba(35,134,54,0.08); }
+  .check-item .checkmark {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    border: 2px solid var(--muted);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem;
+    flex-shrink: 0;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .check-item.checked .checkmark { background: var(--low); border-color: var(--low); color: #fff; }
+  .check-item .check-text { font-size: 0.9rem; font-weight: 500; }
+
+  /* ─── Press-and-hold confirm button ─────────────────────────────── */
+  .hold-btn-wrap {
+    position: relative;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    height: 68px;
+  }
+  .hold-btn {
+    width: 100%;
+    height: 100%;
+    border: none;
+    border-radius: var(--radius-lg);
+    font-size: 1.05rem;
+    font-weight: 800;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    color: #fff;
+    position: relative;
+    z-index: 2;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: filter 0.1s;
+  }
+  .hold-btn.risk-low  { background: var(--low);  }
+  .hold-btn.risk-med  { background: var(--med); color: #000; }
+  .hold-btn.risk-high { background: var(--high); }
+
+  .hold-progress {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 0%;
+    transition: none;
+    z-index: 1;
+    border-radius: var(--radius-lg);
+  }
+  .hold-btn.risk-low  ~ .hold-progress,
+  .risk-low .hold-progress  { background: rgba(255,255,255,0.25); }
+  .hold-btn.risk-med  ~ .hold-progress,
+  .risk-med .hold-progress  { background: rgba(0,0,0,0.18); }
+  .hold-btn.risk-high ~ .hold-progress,
+  .risk-high .hold-progress { background: rgba(255,255,255,0.22); }
+
+  .hold-hint {
+    text-align: center;
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+
+  /* Quick confirm for low risk */
+  .quick-confirm-row {
+    display: flex;
+    gap: 10px;
+  }
+
+  /* ─── SCREEN 4 — Administration Log ─────────────────────────────── */
+  #screen-log .content {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    max-width: 600px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .success-banner {
+    background: rgba(35,134,54,0.12);
+    border: 2px solid var(--low);
+    border-radius: var(--radius-lg);
+    padding: 28px 24px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .success-icon { font-size: 3rem; }
+  .success-title { font-size: 1.5rem; font-weight: 900; color: #3fb950; }
+  .success-sub { font-size: 0.88rem; color: var(--muted); }
+
+  .log-detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .log-detail-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+  }
+  .log-detail-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; }
+  .log-detail-value { font-size: 0.95rem; font-weight: 700; margin-top: 3px; }
+
+  .log-history { display: flex; flex-direction: column; gap: 8px; max-height: 220px; overflow-y: auto; }
+  .log-entry {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
+  }
+  .log-entry-left { display: flex; flex-direction: column; gap: 2px; }
+  .log-entry-name { font-weight: 700; }
+  .log-entry-meta { font-size: 0.75rem; color: var(--muted); }
+  .log-risk-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ─── Undo toast ─────────────────────────────────────────────────── */
+  #undo-toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: #333;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 0.9rem;
+    z-index: 1000;
+    transition: transform 0.3s ease;
+    white-space: nowrap;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+  #undo-toast.show { transform: translateX(-50%) translateY(0); }
+  #undo-toast button {
+    background: var(--accent);
+    border: none;
+    color: #fff;
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 0.85rem;
+  }
+
+  /* ─── Misfire guard overlay ──────────────────────────────────────── */
+  #misfire-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 500;
+    align-items: center;
+    justify-content: center;
+  }
+  #misfire-overlay.show { display: flex; }
+  .misfire-box {
+    background: var(--surface);
+    border: 2px solid var(--high);
+    border-radius: var(--radius-lg);
+    padding: 32px 28px;
+    max-width: 360px;
+    width: 90%;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    text-align: center;
+    animation: shake 0.3s ease;
+  }
+  @keyframes shake {
+    0%,100%{ transform:translateX(0); }
+    25%{ transform:translateX(-8px); }
+    75%{ transform:translateX(8px); }
+  }
+  .misfire-icon { font-size: 3rem; }
+  .misfire-title { font-size: 1.2rem; font-weight: 800; color: var(--high); }
+  .misfire-sub { font-size: 0.88rem; color: var(--muted); }
+
+  /* ─── Scrollbar ──────────────────────────────────────────────────── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ─── Utility ────────────────────────────────────────────────────── */
+  .section-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--muted);
+    margin-bottom: 2px;
+  }
+  .gap-8 { gap: 8px; }
+  .flex-col { display: flex; flex-direction: column; }
+  .hidden { display: none !important; }
+
+  /* Responsive tweaks */
+  @media (max-width: 480px) {
+    .med-grid { grid-template-columns: 1fr 1fr; }
+    .log-detail-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     SCREEN 1 — Patient Identification
+═══════════════════════════════════════════════════════════════════ -->
+<div id="screen-patient" class="screen active">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div>
+        <div class="topbar-title">🩸 MedAdmin</div>
+        <div class="topbar-sub">Emergency Medication System</div>
+      </div>
+      <span class="badge-emergency">Live</span>
+    </div>
+    <div id="clock">--:--:--</div>
+  </div>
+
+  <div class="content">
+    <div class="scan-zone" onclick="simulateScan()" role="button" tabindex="0" aria-label="Tap to scan patient wristband">
+      <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#58a6ff" stroke-width="1.6">
+        <rect x="2" y="5" width="4" height="14" rx="0.5"/><rect x="7" y="5" width="1.5" height="14" rx="0.5"/>
+        <rect x="10" y="5" width="3" height="14" rx="0.5"/><rect x="15" y="5" width="1.5" height="14" rx="0.5"/>
+        <rect x="18" y="5" width="4" height="14" rx="0.5"/>
+      </svg>
+      <strong>Scan Patient Wristband</strong>
+      <span>Tap to activate scanner</span>
+    </div>
+
+    <div class="divider">or enter manually</div>
+
+    <div class="input-wrap">
+      <label>Patient ID / MRN</label>
+      <input id="patient-id-input" class="input-field" type="text" placeholder="e.g. MRN-00412" />
+    </div>
+    <button class="btn btn-primary btn-full btn-lg" onclick="lookupPatient()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      Find Patient
+    </button>
+
+    <div class="divider">recent patients</div>
+
+    <div class="recent-list" id="recent-list"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     SCREEN 2 — Medication Selection
+═══════════════════════════════════════════════════════════════════ -->
+<div id="screen-medication" class="screen">
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="btn-back" onclick="goTo('patient')" aria-label="Back to patient selection">
+        ← Back
+      </button>
+      <div>
+        <div class="topbar-title">Select Medication</div>
+        <div class="topbar-sub" id="med-screen-patient-name">—</div>
+      </div>
+    </div>
+    <div id="clock2">--:--:--</div>
+  </div>
+
+  <div class="content" id="med-content">
+    <!-- injected dynamically -->
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     SCREEN 3 — Confirm & Administer
+═══════════════════════════════════════════════════════════════════ -->
+<div id="screen-confirm" class="screen">
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="btn-back" onclick="goBack()" aria-label="Back to medication list">
+        ← Back
+      </button>
+      <div>
+        <div class="topbar-title">Confirm Administration</div>
+        <div class="topbar-sub" id="confirm-screen-sub">—</div>
+      </div>
+    </div>
+    <div id="clock3">--:--:--</div>
+  </div>
+
+  <div class="content" id="confirm-content">
+    <!-- injected dynamically -->
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     SCREEN 4 — Administration Log
+═══════════════════════════════════════════════════════════════════ -->
+<div id="screen-log" class="screen">
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="btn-back" onclick="goTo('patient')" aria-label="Start new administration">
+        ＋ New
+      </button>
+      <div>
+        <div class="topbar-title">Administered</div>
+        <div class="topbar-sub" id="log-screen-sub">—</div>
+      </div>
+    </div>
+    <div id="clock4">--:--:--</div>
+  </div>
+  <div class="content" id="log-content"></div>
+</div>
+
+<!-- ─── Undo Toast ────────────────────────────────────────────────── -->
+<div id="undo-toast" role="alert" aria-live="assertive">
+  ↩ Medication selection cleared
+  <button onclick="undoSelection()">UNDO</button>
+</div>
+
+<!-- ─── Misfire Guard ─────────────────────────────────────────────── -->
+<div id="misfire-overlay" role="dialog" aria-modal="true" aria-labelledby="misfire-title">
+  <div class="misfire-box">
+    <div class="misfire-icon">⚠️</div>
+    <div class="misfire-title" id="misfire-title">Accidental Touch?</div>
+    <div class="misfire-sub" id="misfire-msg">You tapped a high-risk medication. Are you sure you want to continue?</div>
+    <button class="btn btn-danger btn-full btn-lg" onclick="confirmMisfire()">Yes, Continue</button>
+    <button class="btn btn-ghost btn-full" onclick="cancelMisfire()">← Cancel</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════════════════
+const PATIENTS = [
+  { id: 'MRN-00412', name: 'Sarah Johnson',  age: 34, ward: 'ICU',       allergies: ['Penicillin','Sulfa'],   dob: '1990-03-15', bloodType: 'A+' },
+  { id: 'MRN-00301', name: 'Robert Chen',    age: 67, ward: 'Cardiology', allergies: ['Aspirin'],             dob: '1957-08-22', bloodType: 'O-' },
+  { id: 'MRN-00587', name: 'Maria Garcia',   age: 52, ward: 'ER Bay 4',   allergies: [],                     dob: '1972-11-01', bloodType: 'B+' },
+  { id: 'MRN-00099', name: 'David Okafor',   age: 28, ward: 'Trauma',     allergies: ['Latex','Codeine'],    dob: '1996-06-30', bloodType: 'AB+' },
+  { id: 'MRN-00143', name: 'Linda Patel',    age: 79, ward: 'Geriatrics', allergies: ['Warfarin'],            dob: '1945-02-14', bloodType: 'A-' },
+];
+
+// TALL-MAN lettering approach: uppercase key letters to distinguish look-alikes
+const MEDICATIONS = [
+  // --- Cardiovascular ---
+  { id:'m01', name:'EPINEPHrine',   generic:'Adrenaline',          dose:'1 mg/mL',  route:['IV','IM'],    category:'Cardiovascular', risk:'high', lookalike:'EPHEDrine',  note:'LOOK-ALIKE: vs EPHEDrine' },
+  { id:'m02', name:'EPHEDrine',     generic:'Ephedrine HCl',       dose:'50 mg/mL', route:['IV','IM'],    category:'Cardiovascular', risk:'high', lookalike:'EPINEPHrine',note:'LOOK-ALIKE: vs EPINEPHrine' },
+  { id:'m03', name:'DOPamine',      generic:'Dopamine HCl',        dose:'200 mg',   route:['IV'],         category:'Cardiovascular', risk:'high', lookalike:'DOBUTamine', note:'LOOK-ALIKE: vs DOBUTamine' },
+  { id:'m04', name:'DOBUTamine',    generic:'Dobutamine HCl',      dose:'250 mg',   route:['IV'],         category:'Cardiovascular', risk:'high', lookalike:'DOPamine',   note:'LOOK-ALIKE: vs DOPamine' },
+  { id:'m05', name:'Metoprolol',    generic:'Metoprolol tartrate', dose:'5 mg/5 mL',route:['IV','PO'],    category:'Cardiovascular', risk:'med',  lookalike:null,          note:null },
+  { id:'m06', name:'Amiodarone',    generic:'Amiodarone HCl',      dose:'150 mg',   route:['IV'],         category:'Cardiovascular', risk:'high', lookalike:null,          note:null },
+
+  // --- Analgesics ---
+  { id:'m07', name:'MORphine',      generic:'Morphine sulfate',    dose:'10 mg/mL', route:['IV','IM','SC'],category:'Analgesics',    risk:'high', lookalike:'HYDROmorphone',note:'LOOK-ALIKE: vs HYDROmorphone' },
+  { id:'m08', name:'HYDROmorphone', generic:'Hydromorphone HCl',   dose:'2 mg/mL',  route:['IV','IM'],    category:'Analgesics',     risk:'high', lookalike:'MORphine',    note:'LOOK-ALIKE: vs MORphine (8× stronger)' },
+  { id:'m09', name:'Fentanyl',      generic:'Fentanyl citrate',    dose:'50 mcg/mL',route:['IV','IM'],    category:'Analgesics',     risk:'high', lookalike:null,          note:null },
+  { id:'m10', name:'Ketorolac',     generic:'Ketorolac tromethamine',dose:'30 mg/mL',route:['IV','IM'],  category:'Analgesics',     risk:'med',  lookalike:null,          note:null },
+  { id:'m11', name:'Paracetamol',   generic:'Acetaminophen',       dose:'1000 mg',  route:['IV','PO'],    category:'Analgesics',     risk:'low',  lookalike:null,          note:null },
+
+  // --- Antibiotics ---
+  { id:'m12', name:'Amoxicillin',   generic:'Amoxicillin trihydrate',dose:'500 mg', route:['IV','PO'],   category:'Antibiotics',    risk:'low',  lookalike:null,          note:'Contains Penicillin — check allergies' },
+  { id:'m13', name:'Vancomycin',    generic:'Vancomycin HCl',      dose:'1 g',      route:['IV'],         category:'Antibiotics',    risk:'med',  lookalike:null,          note:null },
+  { id:'m14', name:'Ceftriaxone',   generic:'Ceftriaxone sodium',  dose:'1 g',      route:['IV','IM'],    category:'Antibiotics',    risk:'low',  lookalike:null,          note:null },
+  { id:'m15', name:'Meropenem',     generic:'Meropenem trihydrate',dose:'1 g',      route:['IV'],         category:'Antibiotics',    risk:'med',  lookalike:null,          note:null },
+
+  // --- Sedatives / Anaesthesia ---
+  { id:'m16', name:'Midazolam',     generic:'Midazolam HCl',       dose:'5 mg/mL',  route:['IV','IM','IN'],category:'Sedatives',    risk:'high', lookalike:null,          note:null },
+  { id:'m17', name:'Propofol',      generic:'Propofol emulsion',   dose:'10 mg/mL', route:['IV'],         category:'Sedatives',     risk:'high', lookalike:null,          note:null },
+  { id:'m18', name:'Ketamine',      generic:'Ketamine HCl',        dose:'50 mg/mL', route:['IV','IM'],    category:'Sedatives',     risk:'med',  lookalike:null,          note:null },
+
+  // --- Anticoagulants ---
+  { id:'m19', name:'Heparin',       generic:'Heparin sodium',      dose:'5000 IU/mL',route:['IV','SC'],   category:'Anticoagulants', risk:'high', lookalike:null,         note:'Confirm dose unit: IU not mg' },
+  { id:'m20', name:'Enoxaparin',    generic:'Enoxaparin sodium',   dose:'100 mg/mL',route:['SC'],         category:'Anticoagulants', risk:'med',  lookalike:null,          note:null },
+];
+
+// ═══════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════
+const state = {
+  currentPatient: null,
+  selectedMed: null,
+  selectedRoute: null,
+  checklist: [],
+  adminLog: [],
+  holdTimer: null,
+  holdInterval: null,
+  misfireCallback: null,
+  undoTimer: null,
+  prevSelection: null,
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// CLOCK
+// ═══════════════════════════════════════════════════════════════════
+function updateClock() {
+  const t = new Date().toLocaleTimeString('en-GB', { hour12: false });
+  ['clock','clock2','clock3','clock4'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = t;
+  });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ═══════════════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════════════
+const SCREENS = ['patient','medication','confirm','log'];
+function goTo(name) {
+  SCREENS.forEach(s => {
+    document.getElementById('screen-' + s).classList.toggle('active', s === name);
+    document.getElementById('screen-' + s).scrollTop = 0;
+  });
+}
+function goBack() {
+  if (state.selectedMed) {
+    // Show undo toast briefly
+    showUndoToast();
+  }
+  goTo('medication');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SCREEN 1 — PATIENT
+// ═══════════════════════════════════════════════════════════════════
+(function renderRecentPatients() {
+  const recent = PATIENTS.slice(0, 4);
+  const list = document.getElementById('recent-list');
+  list.innerHTML = recent.map(p => `
+    <div class="recent-item" onclick="selectPatient('${p.id}')" role="button" tabindex="0"
+         onkeydown="if(event.key==='Enter')selectPatient('${p.id}')">
+      <div class="recent-item-info">
+        <div class="recent-item-name">${p.name}</div>
+        <div class="recent-item-meta">${p.id} · ${p.ward} · Age ${p.age}${p.allergies.length ? ' · ⚠ ' + p.allergies.join(', ') : ''}</div>
+      </div>
+      <div class="recent-item-arrow">›</div>
+    </div>
+  `).join('');
+})();
+
+function simulateScan() {
+  // Simulate scanner picking up first patient
+  const p = PATIENTS[Math.floor(Math.random() * PATIENTS.length)];
+  document.getElementById('patient-id-input').value = p.id;
+  selectPatient(p.id);
+}
+
+function lookupPatient() {
+  const val = document.getElementById('patient-id-input').value.trim().toUpperCase();
+  const p = PATIENTS.find(p => p.id.toUpperCase() === val || p.name.toUpperCase().includes(val));
+  if (p) {
+    selectPatient(p.id);
+  } else {
+    alert('Patient not found. Check the MRN and try again.');
+  }
+}
+
+function selectPatient(id) {
+  const p = PATIENTS.find(p => p.id === id);
+  if (!p) return;
+  state.currentPatient = p;
+  renderMedicationScreen();
+  goTo('medication');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SCREEN 2 — MEDICATION SELECTION
+// ═══════════════════════════════════════════════════════════════════
+function renderMedicationScreen() {
+  const p = state.currentPatient;
+  document.getElementById('med-screen-patient-name').textContent = p.name + ' · ' + p.ward;
+
+  // Group medications by category
+  const cats = {};
+  MEDICATIONS.forEach(m => {
+    if (!cats[m.category]) cats[m.category] = [];
+    cats[m.category].push(m);
+  });
+
+  const isContraindicated = (med) => {
+    // Simple allergy check: Penicillin class includes Amoxicillin
+    const allergyMap = { 'Penicillin': ['m12'], 'Aspirin': ['m10'], 'Codeine': ['m07','m08','m09'], 'Warfarin': ['m20'] };
+    return p.allergies.some(a => (allergyMap[a] || []).includes(med.id));
+  };
+
+  let html = `
+    <div class="patient-banner">
+      <div>
+        <div class="patient-banner-name">👤 ${p.name}</div>
+        <div class="patient-banner-meta">DOB: ${p.dob} · Blood: ${p.bloodType} · ${p.ward}</div>
+      </div>
+      ${p.allergies.length
+        ? `<div class="allergy-tag">⚠ Allergy: ${p.allergies.join(', ')}</div>`
+        : `<div style="font-size:0.78rem;color:var(--muted)">No known allergies</div>`}
+    </div>
+
+    <div class="search-wrap">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+      </svg>
+      <input id="med-search" class="input-field" type="text" placeholder="Search medication name…"
+             oninput="filterMeds(this.value)" />
+    </div>
+
+    <div class="risk-legend">
+      <span class="legend-item"><span class="legend-dot" style="background:var(--low)"></span> Standard Risk</span>
+      <span class="legend-item"><span class="legend-dot" style="background:var(--med)"></span> Moderate Risk</span>
+      <span class="legend-item"><span class="legend-dot" style="background:var(--high)"></span> High Alert</span>
+    </div>
+
+    <div id="med-categories">
+  `;
+
+  Object.entries(cats).forEach(([cat, meds]) => {
+    html += `<div class="cat-block" data-cat="${cat}">`;
+    html += `<div class="cat-header">${cat}</div>`;
+    html += `<div class="med-grid">`;
+    meds.forEach(m => {
+      const contra = isContraindicated(m);
+      const hasLookalike = !!m.lookalike;
+      html += `
+        <div class="med-card risk-${m.risk} ${hasLookalike ? 'has-lookalike' : ''} ${contra ? 'contraindicated' : ''}"
+             id="mc-${m.id}"
+             data-id="${m.id}"
+             data-name="${m.name.toLowerCase()}"
+             onclick="handleMedTap('${m.id}')"
+             role="button"
+             tabindex="${contra ? -1 : 0}"
+             aria-label="${m.name}, ${m.risk} risk${contra ? ', contraindicated' : ''}"
+             onkeydown="if(event.key==='Enter')handleMedTap('${m.id}')">
+          <div>
+            <div class="med-name">${formatMedName(m.name)}</div>
+            <div class="med-generic">${m.generic}</div>
+            ${m.note ? `<div class="similar-warn">⚠ ${m.note}</div>` : ''}
+          </div>
+          <div class="med-dose">${m.dose}</div>
+          <div class="med-badge">${m.risk === 'low' ? 'Standard' : m.risk === 'med' ? 'Moderate' : 'High Alert'}</div>
+        </div>
+      `;
+    });
+    html += `</div></div>`;
+  });
+
+  html += `</div>`;
+  document.getElementById('med-content').innerHTML = html;
+}
+
+function formatMedName(name) {
+  // TALL-MAN: uppercase letters already in data; highlight uppercase sequences
+  return name.replace(/[A-Z]{2,}/g, s => `<span class="diff">${s}</span>`);
+}
+
+function filterMeds(query) {
+  const q = query.toLowerCase().trim();
+  const cards = document.querySelectorAll('.med-card');
+  const cats = document.querySelectorAll('.cat-block');
+
+  cards.forEach(card => {
+    const match = !q || card.dataset.name.includes(q);
+    card.style.display = match ? '' : 'none';
+  });
+
+  cats.forEach(block => {
+    const anyVisible = Array.from(block.querySelectorAll('.med-card')).some(c => c.style.display !== 'none');
+    block.style.display = anyVisible ? '' : 'none';
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MED TAP — MISFIRE GUARD (high-risk = confirm overlay first)
+// ═══════════════════════════════════════════════════════════════════
+function handleMedTap(medId) {
+  const med = MEDICATIONS.find(m => m.id === medId);
+  if (!med) return;
+
+  if (med.risk === 'high') {
+    // Show misfire overlay before proceeding
+    document.getElementById('misfire-msg').textContent =
+      `"${med.name}" is a HIGH ALERT medication. Confirm this is the intended drug.`;
+    document.getElementById('misfire-overlay').classList.add('show');
+    state.misfireCallback = () => proceedToConfirm(med);
+  } else {
+    proceedToConfirm(med);
+  }
+}
+
+function confirmMisfire() {
+  document.getElementById('misfire-overlay').classList.remove('show');
+  if (state.misfireCallback) { state.misfireCallback(); state.misfireCallback = null; }
+}
+function cancelMisfire() {
+  document.getElementById('misfire-overlay').classList.remove('show');
+  state.misfireCallback = null;
+}
+
+function proceedToConfirm(med) {
+  state.prevSelection = state.selectedMed;
+  state.selectedMed = med;
+  state.selectedRoute = med.route[0];
+  state.checklist = [];
+  renderConfirmScreen();
+  goTo('confirm');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SCREEN 3 — CONFIRM & ADMINISTER
+// ═══════════════════════════════════════════════════════════════════
+function renderConfirmScreen() {
+  const p = state.currentPatient;
+  const m = state.selectedMed;
+
+  document.getElementById('confirm-screen-sub').textContent = p.name + ' · ' + m.name;
+
+  // Build checklist items based on risk
+  const checkItems = [
+    { id: 'c1', text: `Correct Patient: ${p.name} (${p.id})` },
+    { id: 'c2', text: `Correct Drug: ${m.name} (${m.generic})` },
+    { id: 'c3', text: `Correct Dose: ${m.dose}` },
+    { id: 'c4', text: `Correct Route: will confirm below` },
+  ];
+  if (m.risk === 'high') {
+    checkItems.push({ id: 'c5', text: `Allergy check confirmed (${p.allergies.length ? p.allergies.join(', ') : 'none'})` });
+    checkItems.push({ id: 'c6', text: 'Second nurse verification complete' });
+  }
+
+  const isHighRisk = m.risk === 'high';
+  const isMedRisk  = m.risk === 'med';
+
+  const routeHTML = m.route.map(r => `
+    <button class="route-btn ${r === state.selectedRoute ? 'selected' : ''}"
+            onclick="selectRoute('${r}')">${r}</button>
+  `).join('');
+
+  const checklistHTML = checkItems.map(ci => `
+    <div class="check-item" id="${ci.id}" onclick="toggleCheck('${ci.id}')" role="checkbox"
+         aria-checked="false" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')toggleCheck('${ci.id}')">
+      <div class="checkmark" id="chk-${ci.id}">✓</div>
+      <div class="check-text">${ci.text}</div>
+    </div>
+  `).join('');
+
+  // Confirmation button — risk-based
+  let confirmButtonHTML = '';
+  if (isHighRisk) {
+    confirmButtonHTML = `
+      <div class="section-label" style="margin-top:8px">Hold to Administer (2 seconds)</div>
+      <div class="hold-btn-wrap" id="hold-wrap">
+        <button class="hold-btn risk-high"
+                id="hold-btn"
+                onmousedown="startHold(event)" ontouchstart="startHold(event)"
+                onmouseup="cancelHold()" ontouchend="cancelHold()"
+                onmouseleave="cancelHold()"
+                aria-label="Hold 2 seconds to confirm administration">
+          🔴 Hold to Administer — HIGH ALERT
+        </button>
+        <div class="hold-progress" id="hold-progress"></div>
+      </div>
+      <div class="hold-hint">Hold the button for 2 s to confirm — prevents accidental taps</div>
+    `;
+  } else if (isMedRisk) {
+    confirmButtonHTML = `
+      <div class="section-label" style="margin-top:8px">Hold to Administer (1 second)</div>
+      <div class="hold-btn-wrap" id="hold-wrap">
+        <button class="hold-btn risk-med"
+                id="hold-btn"
+                onmousedown="startHold(event)" ontouchstart="startHold(event)"
+                onmouseup="cancelHold()" ontouchend="cancelHold()"
+                onmouseleave="cancelHold()"
+                aria-label="Hold 1 second to confirm administration">
+          🟡 Hold to Administer
+        </button>
+        <div class="hold-progress" id="hold-progress"></div>
+      </div>
+      <div class="hold-hint">Hold for 1 s to confirm</div>
+    `;
+  } else {
+    // Low risk — single tap is fine (fast path for emergencies)
+    confirmButtonHTML = `
+      <div class="quick-confirm-row" style="margin-top:8px">
+        <button class="btn btn-success btn-full btn-lg" onclick="administerNow()">
+          ✓ Administer Now
+        </button>
+      </div>
+      <div class="hold-hint">Standard risk — single confirmation</div>
+    `;
+  }
+
+  document.getElementById('confirm-content').innerHTML = `
+    <!-- Patient strip -->
+    <div class="confirm-patient-strip">
+      <div class="avatar">${p.name.charAt(0)}</div>
+      <div>
+        <div style="font-weight:700">${p.name}</div>
+        <div style="font-size:0.8rem;color:var(--muted)">${p.id} · ${p.ward} · ${p.bloodType}</div>
+        ${p.allergies.length ? `<div style="font-size:0.75rem;color:var(--high);font-weight:700;margin-top:3px">⚠ Allergies: ${p.allergies.join(', ')}</div>` : ''}
+      </div>
+    </div>
+
+    <!-- Medication card -->
+    <div class="confirm-med-card risk-${m.risk}">
+      <div class="risk-badge-large">${m.risk === 'low' ? '🟢 Standard' : m.risk === 'med' ? '🟡 Moderate Risk' : '🔴 High Alert'}</div>
+      <div class="confirm-med-name">${formatMedName(m.name)}</div>
+      <div class="confirm-med-info">${m.generic} · ${m.dose}</div>
+      ${m.note ? `<div style="font-size:0.8rem;color:#e3b341;margin-top:4px;font-weight:600">⚠ ${m.note}</div>` : ''}
+    </div>
+
+    <!-- Route selector -->
+    <div>
+      <div class="section-label">Route of Administration</div>
+      <div class="route-grid" id="route-grid" style="margin-top:8px">${routeHTML}</div>
+    </div>
+
+    <!-- Checklist -->
+    <div>
+      <div class="section-label">5 Rights Safety Checklist ${isHighRisk ? '(required)' : '(recommended)'}</div>
+      <div class="checklist" style="margin-top:8px" id="checklist">${checklistHTML}</div>
+    </div>
+
+    <!-- Confirm button -->
+    ${confirmButtonHTML}
+
+    <!-- Cancel -->
+    <button class="btn btn-ghost btn-full" onclick="goBack()" style="margin-bottom:20px">
+      ✕ Cancel — Select Different Medication
+    </button>
+  `;
+}
+
+function selectRoute(r) {
+  state.selectedRoute = r;
+  document.querySelectorAll('.route-btn').forEach(b => {
+    b.classList.toggle('selected', b.textContent === r);
+  });
+  // Update checklist item 4
+  const c4 = document.getElementById('c4');
+  if (c4) {
+    c4.querySelector('.check-text').textContent = `Correct Route: ${r}`;
+  }
+}
+
+function toggleCheck(id) {
+  const el = document.getElementById(id);
+  const chk = document.getElementById('chk-' + id);
+  if (!el) return;
+  const isChecked = el.classList.toggle('checked');
+  el.setAttribute('aria-checked', isChecked.toString());
+  if (!state.checklist.includes(id)) state.checklist.push(id);
+  else state.checklist = state.checklist.filter(x => x !== id);
+}
+
+// ─── Hold-to-confirm ────────────────────────────────────────────────
+function startHold(e) {
+  e.preventDefault();
+  const m = state.selectedMed;
+  const duration = m.risk === 'high' ? 2000 : 1000;
+  const progress = document.getElementById('hold-progress');
+  const btn = document.getElementById('hold-btn');
+
+  if (!progress || !btn) return;
+
+  let elapsed = 0;
+  const step = 50;
+  state.holdInterval = setInterval(() => {
+    elapsed += step;
+    const pct = Math.min((elapsed / duration) * 100, 100);
+    progress.style.width = pct + '%';
+    if (elapsed >= duration) {
+      clearInterval(state.holdInterval);
+      progress.style.width = '0%';
+      btn.style.filter = 'brightness(1.5)';
+      setTimeout(() => { btn.style.filter = ''; administerNow(); }, 100);
+    }
+  }, step);
+}
+
+function cancelHold() {
+  clearInterval(state.holdInterval);
+  const progress = document.getElementById('hold-progress');
+  if (progress) { progress.style.transition = 'width 0.25s'; progress.style.width = '0%'; setTimeout(() => progress.style.transition='', 300); }
+}
+
+// ─── Final administration ────────────────────────────────────────────
+function administerNow() {
+  const p = state.currentPatient;
+  const m = state.selectedMed;
+  if (!p || !m) return;
+
+  const entry = {
+    patient: p.name,
+    patientId: p.id,
+    ward: p.ward,
+    medication: m.name,
+    generic: m.generic,
+    dose: m.dose,
+    route: state.selectedRoute,
+    risk: m.risk,
+    time: new Date().toLocaleTimeString('en-GB', { hour12: false }),
+    date: new Date().toLocaleDateString('en-GB'),
+    checklistComplete: state.checklist.length,
+    nurse: 'Nurse A. Williams', // would come from auth in real system
+  };
+
+  state.adminLog.unshift(entry);
+  renderLogScreen(entry);
+  goTo('log');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SCREEN 4 — LOG
+// ═══════════════════════════════════════════════════════════════════
+function renderLogScreen(entry) {
+  document.getElementById('log-screen-sub').textContent = entry.medication + ' · ' + entry.patient;
+
+  const historyHTML = state.adminLog.slice(1, 6).map(e => `
+    <div class="log-entry">
+      <div class="log-entry-left">
+        <div class="log-entry-name">${e.medication}</div>
+        <div class="log-entry-meta">${e.patient} · ${e.route} · ${e.time} ${e.date}</div>
+      </div>
+      <span class="log-risk-dot" style="background:${e.risk==='low'?'var(--low)':e.risk==='med'?'var(--med)':'var(--high)'}"></span>
+    </div>
+  `).join('');
+
+  document.getElementById('log-content').innerHTML = `
+    <div class="success-banner">
+      <div class="success-icon">✅</div>
+      <div class="success-title">Administration Recorded</div>
+      <div class="success-sub">${entry.time} · ${entry.date} · ${entry.nurse}</div>
+    </div>
+
+    <div class="log-detail-grid">
+      <div class="log-detail-item">
+        <div class="log-detail-label">Patient</div>
+        <div class="log-detail-value">${entry.patient}</div>
+      </div>
+      <div class="log-detail-item">
+        <div class="log-detail-label">MRN</div>
+        <div class="log-detail-value">${entry.patientId}</div>
+      </div>
+      <div class="log-detail-item">
+        <div class="log-detail-label">Medication</div>
+        <div class="log-detail-value">${entry.medication}</div>
+      </div>
+      <div class="log-detail-item">
+        <div class="log-detail-label">Dose</div>
+        <div class="log-detail-value">${entry.dose}</div>
+      </div>
+      <div class="log-detail-item">
+        <div class="log-detail-label">Route</div>
+        <div class="log-detail-value">${entry.route}</div>
+      </div>
+      <div class="log-detail-item">
+        <div class="log-detail-label">Risk Tier</div>
+        <div class="log-detail-value" style="color:${entry.risk==='low'?'var(--low)':entry.risk==='med'?'var(--med)':'var(--high)'}">
+          ${entry.risk === 'low' ? '🟢 Standard' : entry.risk === 'med' ? '🟡 Moderate' : '🔴 High Alert'}
+        </div>
+      </div>
+      <div class="log-detail-item">
+        <div class="log-detail-label">Ward</div>
+        <div class="log-detail-value">${entry.ward}</div>
+      </div>
+      <div class="log-detail-item">
+        <div class="log-detail-label">Checklist Items</div>
+        <div class="log-detail-value">${entry.checklistComplete} confirmed</div>
+      </div>
+    </div>
+
+    ${state.adminLog.length > 1 ? `
+      <div class="section-label" style="margin-top:8px">Earlier This Session</div>
+      <div class="log-history">${historyHTML}</div>
+    ` : ''}
+
+    <div style="display:flex;gap:10px;margin-bottom:24px">
+      <button class="btn btn-primary btn-full btn-lg" onclick="goTo('medication')">
+        ＋ Administer Another
+      </button>
+      <button class="btn btn-ghost btn-full btn-lg" onclick="goTo('patient')">
+        New Patient
+      </button>
+    </div>
+  `;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// UNDO TOAST
+// ═══════════════════════════════════════════════════════════════════
+function showUndoToast() {
+  clearTimeout(state.undoTimer);
+  const toast = document.getElementById('undo-toast');
+  toast.classList.add('show');
+  state.undoTimer = setTimeout(() => toast.classList.remove('show'), 4000);
+}
+function undoSelection() {
+  clearTimeout(state.undoTimer);
+  document.getElementById('undo-toast').classList.remove('show');
+  state.selectedMed = state.prevSelection;
+  // Stay on medication screen (already there)
+}
+</script>
+</body>
+</html>

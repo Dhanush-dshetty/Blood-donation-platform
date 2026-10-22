@@ -110,6 +110,7 @@ export default function HospitalDashboard() {
         <div style={{ display: 'flex', gap: 16 }}>
           <Link to="/hospital/inventory" style={{ color: 'white', fontWeight: 600 }}>Inventory</Link>
           <Link to="/hospital/requests" style={{ color: 'white', fontWeight: 600 }}>Requests</Link>
+          <Link to="/hospital/blood-safety" style={{ color: 'white', fontWeight: 600 }}>Blood Safety</Link>
           <Link to="/hospital/map" style={{ color: 'white', fontWeight: 600 }}>Map</Link>
           <Link to="/hospital/analytics" style={{ color: 'white', fontWeight: 600 }}>Analytics</Link>
           <button onClick={() => { logout(); navigate('/'); }} style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 6 }}>Logout</button>

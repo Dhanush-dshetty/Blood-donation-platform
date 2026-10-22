@@ -12,7 +12,7 @@ ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarEle
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
-const TABS = ['Overview', 'Donors', 'Hospitals', 'Requests'];
+const TABS = ['Overview', 'Donors', 'Hospitals', 'Requests', 'Blood Safety'];
 
 const URGENCY_COLORS = { critical: '#e74c3c', high: '#e67e22', medium: '#f39c12', low: '#27ae60' };
 const BG_COLORS = ['#c0392b','#e74c3c','#e67e22','#f39c12','#27ae60','#2980b9','#8e44ad','#16a085'];
@@ -25,6 +25,8 @@ export default function AdminPanel() {
   const [donors, setDonors] = useState([]);
   const [hospitals, setHospitals] = useState([]);
   const [requests, setRequests] = useState([]);
+  const [bloodSafetyStats, setBloodSafetyStats] = useState(null);
+  const [bloodUnits, setBloodUnits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [msg, setMsg] = useState('');
@@ -36,16 +38,20 @@ export default function AdminPanel() {
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [statsRes, donorsRes, hospitalsRes, requestsRes] = await Promise.all([
+      const [statsRes, donorsRes, hospitalsRes, requestsRes, bloodSafetyRes, bloodUnitsRes] = await Promise.all([
         axios.get(`${API_URL}/admin/stats`),
         axios.get(`${API_URL}/admin/donors`),
         axios.get(`${API_URL}/admin/hospitals`),
-        axios.get(`${API_URL}/admin/requests`)
+        axios.get(`${API_URL}/admin/requests`),
+        axios.get(`${API_URL}/admin/blood-safety-stats`),
+        axios.get(`${API_URL}/admin/blood-units`)
       ]);
       setStats(statsRes.data);
       setDonors(donorsRes.data);
       setHospitals(hospitalsRes.data);
       setRequests(requestsRes.data);
+      setBloodSafetyStats(bloodSafetyRes.data);
+      setBloodUnits(bloodUnitsRes.data);
     } catch (e) {
       setMsg('Failed to load data. Make sure you are logged in as admin.');
     } finally {
@@ -311,6 +317,127 @@ export default function AdminPanel() {
                 </tbody>
               </table>
               {requests.length === 0 && <p style={{ textAlign: 'center', padding: 40, color: '#aaa' }}>No requests found</p>}
+            </div>
+          </>
+        )}
+
+        {/* ── BLOOD SAFETY TAB ─────────────────────────────────────── */}
+        {tab === 'Blood Safety' && bloodSafetyStats && (
+          <>
+            {/* Safety Stats Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, marginBottom: 32 }}>
+              {[
+                { label: 'Total Blood Units', value: bloodSafetyStats.totalUnits, icon: '🩸', color: '#c0392b' },
+                { label: 'Available (Safe)', value: bloodSafetyStats.availableUnits, icon: '✅', color: '#27ae60' },
+                { label: 'In Quarantine', value: bloodSafetyStats.quarantineUnits, icon: '⏳', color: '#f39c12' },
+                { label: 'Rejected', value: bloodSafetyStats.rejectedUnits, icon: '❌', color: '#e74c3c' },
+                { label: 'Expired', value: bloodSafetyStats.expiredUnits, icon: '⚠️', color: '#95a5a6' },
+                { label: 'Expiring Soon', value: bloodSafetyStats.expiringSoon, icon: '⏰', color: '#e67e22' },
+                { label: 'Verified Safe', value: bloodSafetyStats.verifiedSafeUnits, icon: '🛡️', color: '#27ae60' },
+                { label: 'Safety Pass Rate', value: `${bloodSafetyStats.safetyPassRate}%`, icon: '📊', color: '#2980b9' },
+              ].map(s => (
+                <div key={s.label} style={{ background: 'white', borderRadius: 12, padding: '20px 16px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', borderTop: `4px solid ${s.color}`, textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.6rem' }}>{s.icon}</div>
+                  <div style={{ fontSize: '1.8rem', fontWeight: 700, color: s.color, margin: '6px 0' }}>{s.value}</div>
+                  <div style={{ color: '#888', fontSize: '0.8rem' }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Charts Row */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 24, marginBottom: 24 }}>
+              <div style={{ background: 'white', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+                <h3 style={{ marginBottom: 16, fontSize: '1rem' }}>📦 Units by Status</h3>
+                <Pie 
+                  data={{
+                    labels: bloodSafetyStats.statusBreakdown?.map(s => s._id) || [],
+                    datasets: [{
+                      data: bloodSafetyStats.statusBreakdown?.map(s => s.count) || [],
+                      backgroundColor: ['#27ae60', '#f39c12', '#e74c3c', '#95a5a6', '#3498db', '#9b59b6'],
+                      borderWidth: 2,
+                      borderColor: '#fff'
+                    }]
+                  }}
+                  options={{ plugins: { legend: { position: 'bottom' } } }}
+                />
+              </div>
+              <div style={{ background: 'white', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+                <h3 style={{ marginBottom: 16, fontSize: '1rem' }}>🩸 Units by Blood Group</h3>
+                <Bar 
+                  data={{
+                    labels: bloodSafetyStats.bloodGroupBreakdown?.map(b => b._id) || [],
+                    datasets: [{
+                      label: 'Units',
+                      data: bloodSafetyStats.bloodGroupBreakdown?.map(b => b.count) || [],
+                      backgroundColor: '#c0392b'
+                    }]
+                  }}
+                  options={{ plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }}
+                />
+              </div>
+              <div style={{ background: 'white', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+                <h3 style={{ marginBottom: 16, fontSize: '1rem' }}>💉 Units by Component</h3>
+                <Pie 
+                  data={{
+                    labels: bloodSafetyStats.componentBreakdown?.map(c => c._id.replace('_', ' ')) || [],
+                    datasets: [{
+                      data: bloodSafetyStats.componentBreakdown?.map(c => c.count) || [],
+                      backgroundColor: BG_COLORS,
+                      borderWidth: 2,
+                      borderColor: '#fff'
+                    }]
+                  }}
+                  options={{ plugins: { legend: { position: 'bottom' } } }}
+                />
+              </div>
+            </div>
+
+            {/* Recent Blood Units Table */}
+            <h3 style={{ marginBottom: 16, color: '#333' }}>Recent Blood Units (Latest 100)</h3>
+            <div style={{ background: 'white', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', overflow: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ background: '#f8f9fa', borderBottom: '2px solid #eee' }}>
+                    {['Unit ID', 'Blood Group', 'Component', 'Status', 'Verified Safe', 'Expiry Date', 'Hospital', 'Created'].map(h => (
+                      <th key={h} style={{ padding: '12px 16px', textAlign: 'left', color: '#666', fontWeight: 600, fontSize: '0.85rem' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {bloodUnits.map(u => {
+                    const daysUntilExpiry = Math.floor((new Date(u.expiryDate) - new Date()) / (1000 * 60 * 60 * 24));
+                    const isExpiringSoon = daysUntilExpiry <= 7 && daysUntilExpiry >= 0;
+                    return (
+                      <tr key={u._id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                        <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontSize: '0.85rem', fontWeight: 600 }}>{u.unitId}</td>
+                        <td style={{ padding: '12px 16px' }}>
+                          <span style={{ background: '#fff0f0', color: '#c0392b', padding: '2px 8px', borderRadius: 4, fontWeight: 700 }}>{u.bloodGroup}</span>
+                        </td>
+                        <td style={{ padding: '12px 16px', fontSize: '0.85rem' }}>{u.componentType?.replace('_', ' ')}</td>
+                        <td style={{ padding: '12px 16px' }}>
+                          <span style={{ 
+                            background: u.status === 'available' ? '#e8f8e8' : u.status === 'quarantine' ? '#fff9e6' : u.status === 'rejected' ? '#fdecea' : '#f0f0f0',
+                            color: u.status === 'available' ? '#27ae60' : u.status === 'quarantine' ? '#e67e22' : u.status === 'rejected' ? '#e74c3c' : '#888',
+                            padding: '3px 10px', borderRadius: 12, fontSize: '0.8rem', fontWeight: 600 
+                          }}>
+                            {u.status}
+                          </span>
+                        </td>
+                        <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                          {u.verifiedSafe ? <span style={{ color: '#27ae60', fontSize: '1.2rem' }}>✅</span> : <span style={{ color: '#e74c3c', fontSize: '1.2rem' }}>❌</span>}
+                        </td>
+                        <td style={{ padding: '12px 16px', fontSize: '0.85rem', color: isExpiringSoon ? '#e67e22' : '#666', fontWeight: isExpiringSoon ? 600 : 400 }}>
+                          {new Date(u.expiryDate).toLocaleDateString()}
+                          {isExpiringSoon && <span style={{ marginLeft: 6 }}>⚠️ {daysUntilExpiry}d</span>}
+                        </td>
+                        <td style={{ padding: '12px 16px', fontSize: '0.85rem', color: '#666' }}>{u.hospital?.hospitalName || '—'}</td>
+                        <td style={{ padding: '12px 16px', fontSize: '0.8rem', color: '#aaa' }}>{new Date(u.createdAt).toLocaleDateString()}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {bloodUnits.length === 0 && <p style={{ textAlign: 'center', padding: 40, color: '#aaa' }}>No blood units found</p>}
             </div>
           </>
         )}
