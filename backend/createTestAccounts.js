@@ -63,9 +63,11 @@ async function createTestAccounts() {
     console.log('✅ Connected to MongoDB');
 
     // Clear existing test accounts
+    const existingUsers = await User.find({ email: { $in: testAccounts.map(a => a.email) } });
+    const userIds = existingUsers.map(u => u._id);
     await User.deleteMany({ email: { $in: testAccounts.map(a => a.email) } });
-    await Donor.deleteMany({ email: { $in: testAccounts.map(a => a.email) } });
-    await Hospital.deleteMany({ email: { $in: testAccounts.map(a => a.email) } });
+    await Donor.deleteMany({ user: { $in: userIds } });
+    await Hospital.deleteMany({ $or: [{ user: { $in: userIds } }, { registrationNumber: 'TEST-HOSP-001' }] });
     console.log('🗑️  Cleared existing test accounts');
 
     for (const account of testAccounts) {

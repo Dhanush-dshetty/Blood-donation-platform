@@ -20,6 +20,8 @@ export default function AnalyticsPage() {
   const [stats, setStats] = useState(null);
   const [inventory, setInventory] = useState({});
   const [forecast, setForecast] = useState({});
+  const [mobilizationMetrics, setMobilizationMetrics] = useState(null);
+  const [fairnessReport, setFairnessReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('30');
 
@@ -31,16 +33,26 @@ export default function AnalyticsPage() {
     setLoading(true);
     try {
       const isAdmin = user?.role === 'admin';
-      const [statsRes, inventoryRes, forecastRes] = await Promise.all([
+      const [statsRes, inventoryRes, forecastRes, mobRes, fairRes] = await Promise.all([
         isAdmin
           ? axios.get(`${API_URL}/admin/stats`)
           : axios.get(`${API_URL}/admin/stats`).catch(() => ({ data: null })),
         axios.get(`${API_URL}/inventory`).catch(() => ({ data: { summary: {} } })),
-        axios.get(`${API_URL}/ai/forecast`).catch(() => ({ data: { forecast: {} } }))
+        axios.get(`${API_URL}/ai/forecast`).catch(() => ({ data: { forecast: {} } })),
+        // Mobilization metrics (Req A) — only available for hospital users
+        user?.role === 'hospital'
+          ? axios.get(`${API_URL}/requests/metrics/summary`).catch(() => ({ data: null }))
+          : Promise.resolve({ data: null }),
+        // Fairness report (Req B) — only for hospital users
+        user?.role === 'hospital'
+          ? axios.get(`${API_URL}/ai/fairness-report`).catch(() => ({ data: null }))
+          : Promise.resolve({ data: null }),
       ]);
       setStats(statsRes.data);
       setInventory(inventoryRes.data?.summary || {});
       setForecast(forecastRes.data?.forecast || {});
+      setMobilizationMetrics(mobRes.data);
+      setFairnessReport(fairRes.data);
     } catch (e) {
       console.error(e);
     } finally {
@@ -284,6 +296,71 @@ export default function AnalyticsPage() {
             </tbody>
           </table>
         </div>
+
+        {/* ── Mobilization Metrics (Req A) ── */}
+        {mobilizationMetrics && (
+          <div style={{ background: 'white', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginTop: 24 }}>
+            <h3 style={{ marginBottom: 4, fontSize: '1rem' }}>🎯 Donor Mobilization Metrics <span style={{ fontSize: '0.78rem', color: '#888', fontWeight: 400 }}>(last 30 days)</span></h3>
+            <p style={{ color: '#888', fontSize: '0.82rem', marginBottom: 16 }}>
+              Metrics track confirmed participation (donor accepts), not necessarily completed donation.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 20 }}>
+              {[
+                { label: 'Fulfillment Rate', value: mobilizationMetrics.fulfillmentRate != null ? `${mobilizationMetrics.fulfillmentRate}%` : '—', color: '#27ae60' },
+                { label: 'Avg Alerts/Request', value: mobilizationMetrics.avgAlertsPerRequest ?? '—', color: '#2980b9' },
+                { label: 'Avg Mins to 1st Confirmed', value: mobilizationMetrics.avgMinutesToFirstConfirmed != null ? `${mobilizationMetrics.avgMinutesToFirstConfirmed} min` : '—', color: '#e67e22' },
+                { label: 'Low-Donor Scenarios', value: mobilizationMetrics.lowDonorScenarios ?? '—', color: '#e74c3c' },
+              ].map(s => (
+                <div key={s.label} style={{ background: '#f8f9fa', borderRadius: 8, padding: 14, borderLeft: `4px solid ${s.color}` }}>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 700, color: s.color }}>{s.value}</div>
+                  <div style={{ color: '#888', fontSize: '0.8rem', marginTop: 4 }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Per-region fulfillment (Req B) */}
+            {mobilizationMetrics.regionFulfillment?.length > 0 && (
+              <div>
+                <div style={{ fontWeight: 600, marginBottom: 8, fontSize: '0.9rem', color: '#555' }}>Regional Fulfillment Rates</div>
+                {mobilizationMetrics.regionFulfillment.map(r => (
+                  <div key={r.area} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                    <div style={{ width: 80, fontSize: '0.82rem', color: '#555' }}>{r.area}</div>
+                    <div style={{ flex: 1, background: '#f0f0f0', borderRadius: 4, height: 10 }}>
+                      <div style={{ width: `${r.fulfillmentRate}%`, background: r.fulfillmentRate < 50 ? '#e74c3c' : '#27ae60', height: '100%', borderRadius: 4 }} />
+                    </div>
+                    <div style={{ width: 40, fontSize: '0.8rem', color: '#888', textAlign: 'right' }}>{r.fulfillmentRate}%</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Fairness Report (Req B) ── */}
+        {fairnessReport?.summary && (
+          <div style={{ background: 'white', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginTop: 16 }}>
+            <h3 style={{ marginBottom: 4, fontSize: '1rem' }}>⚖️ Fairness & Coverage Report</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
+              <div style={{ background: '#f8f9fa', borderRadius: 8, padding: 14 }}>
+                <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#8e44ad' }}>{fairnessReport.summary.regionsAnalysed}</div>
+                <div style={{ color: '#888', fontSize: '0.8rem' }}>Regions Analysed</div>
+              </div>
+              <div style={{ background: '#fdecea', borderRadius: 8, padding: 14 }}>
+                <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#c0392b' }}>{fairnessReport.summary.highBurdenDonors}</div>
+                <div style={{ color: '#888', fontSize: '0.8rem' }}>High-Burden Donors</div>
+              </div>
+              <div style={{ background: '#fff3cd', borderRadius: 8, padding: 14 }}>
+                <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#e67e22' }}>{fairnessReport.summary.underservedRegions?.length || 0}</div>
+                <div style={{ color: '#888', fontSize: '0.8rem' }}>Underserved Regions (&lt;50% fulfillment)</div>
+              </div>
+            </div>
+            {fairnessReport.summary.underservedRegions?.length > 0 && (
+              <div style={{ marginTop: 12, padding: 10, background: '#fff3cd', borderRadius: 8, fontSize: '0.85rem', color: '#856404' }}>
+                ⚠️ <strong>Underserved regions</strong> (fewer donors or lower fulfillment): {fairnessReport.summary.underservedRegions.join(', ')}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,11 +1,35 @@
+/**
+ * requestController.js
+ *
+ * Integrates the response-probability-aware donor ranking (Req A) and
+ * fairness-aware alert allocation (Req B) into the existing request workflow.
+ *
+ * Backward-compatible: existing API contracts are preserved.
+ */
 const BloodRequest = require('../models/BloodRequest');
-const Hospital = require('../models/Hospital');
-const Donor = require('../models/Donor');
-const User = require('../models/User');
-const axios = require('axios');
+const Hospital     = require('../models/Hospital');
+const Donor        = require('../models/Donor');
+const User         = require('../models/User');
+const axios        = require('axios');
 const { sendBloodRequestAlert, sendDonationConfirmation } = require('../utils/emailService');
+const {
+  rankAndSelectDonors,
+  updateDonorAlertBurden,
+  recordDonorResponse,
+  computeMobilizationMetrics,
+  getEffectiveCoords,
+  haversineKm,
+  CITY_COORDS,
+} = require('../utils/donorRankingService');
 
+// ────────────────────────────────────────────────────────────────
+// Helper: city-coord fallback (kept for backward compat in socket emit)
+// ────────────────────────────────────────────────────────────────
+const calculateDistance = (coords1, coords2) => haversineKm(coords1, coords2);
+
+// ────────────────────────────────────────────────────────────────
 // Create a new blood request (hospital)
+// ────────────────────────────────────────────────────────────────
 const createRequest = async (req, res) => {
   try {
     const hospital = await Hospital.findOne({ user: req.user.id });
@@ -13,7 +37,7 @@ const createRequest = async (req, res) => {
 
     const { bloodGroup, unitsRequired, urgencyLevel, patientCondition } = req.body;
 
-    // Get AI urgency prediction
+    // ── Step 1: AI urgency prediction ─────────────────────────────
     let aiUrgencyScore = 0;
     try {
       const aiResponse = await axios.post(
@@ -25,97 +49,129 @@ const createRequest = async (req, res) => {
       console.warn('AI service unavailable, skipping urgency prediction');
     }
 
+    // ── Step 2: Create the request record ─────────────────────────
     const request = await BloodRequest.create({
       hospital: hospital._id,
-      bloodGroup, unitsRequired, urgencyLevel, patientCondition,
-      aiUrgencyScore
+      bloodGroup,
+      unitsRequired,
+      urgencyLevel,
+      patientCondition,
+      aiUrgencyScore,
+      rankingAlgorithm: 'v2_fairness',
     });
 
-    // Find nearby compatible donors and alert them via socket
-    const io = req.app.get('io');
+    // ── Step 3: Resolve hospital coordinates ──────────────────────
     let [lng, lat] = hospital.location.coordinates;
-    
-    // Fallback to city coordinates if hospital coords are [0,0]
     if (lng === 0 && lat === 0) {
       const cityCoords = CITY_COORDS[hospital.city] || CITY_COORDS['Bangalore'];
       [lng, lat] = cityCoords;
     }
+    const hospitalCoords = [lng, lat];
 
+    // ── Step 4: Load candidate donors ─────────────────────────────
+    // Pull blood-compatible, geographically broad set; ranking handles fine filtering
     const compatibilityMap = {
       'A+': ['A+', 'A-', 'O+', 'O-'], 'A-': ['A-', 'O-'],
       'B+': ['B+', 'B-', 'O+', 'O-'], 'B-': ['B-', 'O-'],
       'AB+': ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'],
-      'AB-': ['A-', 'B-', 'AB-', 'O-'], 'O+': ['O+', 'O-'], 'O-': ['O-']
+      'AB-': ['A-', 'B-', 'AB-', 'O-'], 'O+': ['O+', 'O-'], 'O-': ['O-'],
     };
     const compatibleGroups = compatibilityMap[bloodGroup] || [bloodGroup];
 
-    // Find nearby donors with fallback coordinates
     const allDonors = await Donor.find({
-      isAvailable: true,
-      bloodGroup: { $in: compatibleGroups }
-    }).limit(100);
+      bloodGroup: { $in: compatibleGroups },
+    }).limit(200);
 
-    // Filter by distance manually (since some donors have [0,0] coords)
-    const nearbyDonors = allDonors.filter(donor => {
-      let donorCoords = donor.location?.coordinates || [0, 0];
-      if (donorCoords[0] === 0 && donorCoords[1] === 0) {
-        const cityCoords = CITY_COORDS[donor.area] || CITY_COORDS['Bangalore'];
-        donorCoords = cityCoords;
-      }
-      const distance = calculateDistance([lng, lat], donorCoords);
-      return distance <= 20; // 20km radius
-    }).slice(0, 30);
+    // ── Step 5: Run the ranking + fairness pipeline (Req A + Req B) ──
+    const { alertCandidates, coverageReport } = rankAndSelectDonors(
+      allDonors,
+      bloodGroup,
+      hospitalCoords,
+      urgencyLevel,
+      aiUrgencyScore,
+      30 // alert up to 30 donors
+    );
 
-    // Emit real-time alert to each nearby donor + send email
-    nearbyDonors.forEach(donor => {
+    // ── Step 6: Record mobilization metadata on the request ────────
+    const alertedAreas = [...new Set(alertCandidates.map(c => c.area).filter(Boolean))];
+    request.mobilization = {
+      alertsSent:           alertCandidates.length,
+      alertedAreas,
+      lowDonorAvailability: coverageReport.lowDonorAvailability,
+    };
+    await request.save();
+
+    // ── Step 7: Emit real-time alerts and update donor burden ─────
+    const io = req.app.get('io');
+
+    for (const candidate of alertCandidates) {
+      const { donor, distanceKm } = candidate;
+
+      // Socket alert
       io.to(`donor_${donor._id}`).emit('blood_request_alert', {
-        requestId: request._id,
+        requestId:     request._id,
         bloodGroup,
         urgencyLevel,
-        hospitalName: hospital.hospitalName,
-        hospitalCity: hospital.city,
+        hospitalName:  hospital.hospitalName,
+        hospitalCity:  hospital.city,
         unitsRequired,
         patientCondition,
-        distanceKm: Math.round(calculateDistance([lng, lat], donor.location?.coordinates || CITY_COORDS[donor.area] || [lng, lat]) * 10) / 10
+        distanceKm,
+        // Expose scoring info so donor UI can show context (non-PII)
+        estimatedTravelMinutes: candidate.estimatedTravelMinutes,
+        mobilizationScore:      candidate.mobilizationScore,
       });
-    });
 
-    // Send emails to nearby donors (only for critical/high urgency)
+      // Update alert burden on each donor (Req B tracking)
+      try {
+        await updateDonorAlertBurden(donor);
+      } catch (e) {
+        console.warn('Could not update alert burden for donor', donor._id, e.message);
+      }
+    }
+
+    // ── Step 8: Email alerts (critical/high only) ──────────────────
     if (urgencyLevel === 'critical' || urgencyLevel === 'high') {
-      const donorUsers = await User.find({
-        _id: { $in: nearbyDonors.map(d => d.user) }
-      });
-      const donorUserMap = {};
-      donorUsers.forEach(u => { donorUserMap[u._id.toString()] = u; });
+      const donorUserIds = alertCandidates.map(c => c.donor.user);
+      const donorUsers   = await User.find({ _id: { $in: donorUserIds } });
+      const userMap      = {};
+      donorUsers.forEach(u => { userMap[u._id.toString()] = u; });
 
-      nearbyDonors.forEach(donor => {
-        const donorUser = donorUserMap[donor.user.toString()];
+      alertCandidates.forEach(({ donor, distanceKm }) => {
+        const donorUser = userMap[donor.user?.toString()];
         if (donorUser?.email) {
           sendBloodRequestAlert({
-            donorEmail: donorUser.email,
-            donorName: donorUser.name,
+            donorEmail:   donorUser.email,
+            donorName:    donorUser.name,
             bloodGroup,
             urgencyLevel,
             hospitalName: hospital.hospitalName,
             hospitalCity: hospital.city,
             unitsRequired,
             patientCondition,
-            requestId: request._id
+            requestId:    request._id,
           }).catch(err => console.error('Email error:', err.message));
         }
       });
     }
 
-    // Also alert the hospital's room
+    // Alert the hospital room
     io.to(`hospital_${hospital._id}`).emit('request_created', { request });
 
-    res.status(201).json({ request, alertedDonors: nearbyDonors.length });
+    res.status(201).json({
+      request,
+      alertedDonors:   alertCandidates.length,
+      coverageReport,  // Req B: geographic coverage details returned to caller
+    });
   } catch (err) {
+    console.error('createRequest error:', err);
     res.status(500).json({ message: err.message });
   }
 };
 
+// ────────────────────────────────────────────────────────────────
 // Get all requests for a hospital
+// ────────────────────────────────────────────────────────────────
 const getHospitalRequests = async (req, res) => {
   try {
     const hospital = await Hospital.findOne({ user: req.user.id });
@@ -131,7 +187,9 @@ const getHospitalRequests = async (req, res) => {
   }
 };
 
+// ────────────────────────────────────────────────────────────────
 // Donor responds to a request
+// ────────────────────────────────────────────────────────────────
 const respondToRequest = async (req, res) => {
   try {
     const donor = await Donor.findOne({ user: req.user.id });
@@ -153,14 +211,23 @@ const respondToRequest = async (req, res) => {
 
     const { contactDetails } = req.body;
     request.respondedDonors.push({
-      donor: donor._id,
-      status: 'accepted',
-      contactDetails: contactDetails || {}
+      donor:          donor._id,
+      status:         'accepted',
+      contactDetails: contactDetails || {},
+      respondedAt:    new Date(),
     });
     request.unitsFulfilled += 1;
 
+    // ── Record time-to-first-confirmed (Req A metric) ─────────────
+    if (!request.mobilization) request.mobilization = {};
+    if (!request.mobilization.firstConfirmedAt) {
+      request.mobilization.firstConfirmedAt     = new Date();
+      request.mobilization.minutesToFirstConfirmed =
+        Math.round((Date.now() - new Date(request.createdAt)) / 60000);
+    }
+
     if (request.unitsFulfilled >= request.unitsRequired) {
-      request.status = 'fulfilled';
+      request.status      = 'fulfilled';
       request.fulfilledAt = new Date();
     } else if (request.unitsFulfilled > 0) {
       request.status = 'partially_fulfilled';
@@ -168,148 +235,205 @@ const respondToRequest = async (req, res) => {
 
     await request.save();
 
-    // Update donor response rate
+    // ── Update donor stats (Req A) ────────────────────────────────
+    // Determine when alert was sent (approximated by request.createdAt)
+    await recordDonorResponse(donor, request.createdAt);
+
+    // Backward compat: increment totalDonations for profile display
     donor.totalDonations += 1;
     await donor.save();
 
     // Send confirmation email to donor
-    const donorUser = await User.findById(donor.user);
-    const requestWithHospital = await BloodRequest.findById(request._id).populate('hospital');
+    const donorUser            = await User.findById(donor.user);
+    const requestWithHospital  = await BloodRequest.findById(request._id).populate('hospital');
     if (donorUser?.email) {
       sendDonationConfirmation({
-        donorEmail: donorUser.email,
-        donorName: contactDetails?.name || donorUser.name,
+        donorEmail:   donorUser.email,
+        donorName:    contactDetails?.name || donorUser.name,
         hospitalName: requestWithHospital.hospital?.hospitalName || 'the hospital',
-        bloodGroup: request.bloodGroup
+        bloodGroup:   request.bloodGroup,
       }).catch(err => console.error('Confirmation email error:', err.message));
     }
 
     // Notify hospital with donor contact details
     const io = req.app.get('io');
     io.to(`hospital_${request.hospital}`).emit('donor_responded', {
-      requestId: request._id,
-      donorName: contactDetails?.name || 'A donor',
-      donorPhone: contactDetails?.phone || '',
-      donorEmail: contactDetails?.email || '',
-      donorMessage: contactDetails?.message || '',
+      requestId:      request._id,
+      donorName:      contactDetails?.name  || 'A donor',
+      donorPhone:     contactDetails?.phone || '',
+      donorEmail:     contactDetails?.email || '',
+      donorMessage:   contactDetails?.message || '',
       unitsFulfilled: request.unitsFulfilled,
-      status: request.status
+      status:         request.status,
     });
 
     res.json({ message: 'Response recorded successfully', request });
   } catch (err) {
+    console.error('respondToRequest error:', err);
     res.status(500).json({ message: err.message });
   }
 };
 
-// Helper: Calculate distance between two coordinates (Haversine formula)
-const calculateDistance = (coords1, coords2) => {
-  const [lon1, lat1] = coords1;
-  const [lon2, lat2] = coords2;
-  
-  const R = 6371; // Radius of Earth in km
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-            Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c; // Distance in km
-};
-
-// City coordinates fallback (for donors with [0,0] coordinates)
-const CITY_COORDS = {
-  'Mangalore': [74.8431, 12.8703], 'Udupi': [74.7421, 13.3409],
-  'Bangalore': [77.5946, 12.9716], 'Mysore': [76.6394, 12.2958],
-  'Mumbai': [72.8777, 19.0760], 'Pune': [73.8567, 18.5204],
-  'Chennai': [80.2707, 13.0827], 'Coimbatore': [76.9558, 11.0168],
-  'Hyderabad': [78.4867, 17.3850], 'Kochi': [76.2673, 9.9312],
-  'Thiruvananthapuram': [76.9366, 8.5241], 'Kozhikode': [75.7804, 11.2588],
-  'Visakhapatnam': [83.2185, 17.6868], 'Ahmedabad': [72.5714, 23.0225],
-  'Jaipur': [75.7873, 26.9124], 'Lucknow': [80.9462, 26.8467],
-  'Kolkata': [88.3639, 22.5726], 'New Delhi': [77.2090, 28.6139],
-  'Delhi': [77.2090, 28.6139], 'Patna': [85.1376, 25.5941],
-  'Bhopal': [77.4126, 23.2599], 'Indore': [75.8577, 22.7196],
-};
-
-// Reverse compatibility map: what blood groups can donate to this blood type
+// ────────────────────────────────────────────────────────────────
+// Reverse compatibility map: blood groups that CAN donate to a given type
+// ────────────────────────────────────────────────────────────────
 const getReverseCompatibility = (bloodGroup) => {
   const reverseMap = {
-    'A+': ['A+', 'AB+'],
-    'A-': ['A+', 'A-', 'AB+', 'AB-'],
-    'B+': ['B+', 'AB+'],
-    'B-': ['B+', 'B-', 'AB+', 'AB-'],
+    'A+':  ['A+', 'AB+'],
+    'A-':  ['A+', 'A-', 'AB+', 'AB-'],
+    'B+':  ['B+', 'AB+'],
+    'B-':  ['B+', 'B-', 'AB+', 'AB-'],
     'AB+': ['AB+'],
     'AB-': ['AB+', 'AB-'],
-    'O+': ['A+', 'B+', 'AB+', 'O+'],
-    'O-': ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
+    'O+':  ['A+', 'B+', 'AB+', 'O+'],
+    'O-':  ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'],
   };
   return reverseMap[bloodGroup] || [bloodGroup];
 };
 
-// Get open requests (for donors to see - PERSONALIZED)
+// ────────────────────────────────────────────────────────────────
+// Get open requests (for donors to see — PERSONALIZED + ranked)
+// ────────────────────────────────────────────────────────────────
 const getOpenRequests = async (req, res) => {
   try {
     const donor = await Donor.findOne({ user: req.user.id });
     if (!donor) return res.status(404).json({ message: 'Donor not found' });
 
     // Get donor's coordinates (with fallback to city coords)
-    let donorCoords = donor.location?.coordinates || [0, 0];
-    if (donorCoords[0] === 0 && donorCoords[1] === 0) {
-      // Fallback to city coordinates
-      const cityCoords = CITY_COORDS[donor.area] || CITY_COORDS['Bangalore'];
-      donorCoords = cityCoords;
-    }
+    const donorCoords = getEffectiveCoords(donor);
 
     // Find blood groups this donor can donate to
     const canDonateTo = getReverseCompatibility(donor.bloodGroup);
 
     // Get all open requests that match donor's blood group
-    const requests = await BloodRequest.find({ 
-      status: { $in: ['open', 'partially_fulfilled'] },
-      bloodGroup: { $in: canDonateTo }
+    const requests = await BloodRequest.find({
+      status:     { $in: ['open', 'partially_fulfilled'] },
+      bloodGroup: { $in: canDonateTo },
     })
       .populate('hospital')
       .sort({ aiUrgencyScore: -1, createdAt: -1 });
 
-    // Filter by distance (20km) and add distance info
     const MAX_DISTANCE_KM = 20;
     const matchedRequests = requests
-      .map(req => {
-        const hospitalCoords = req.hospital?.location?.coordinates || [0, 0];
-        
-        // Fallback hospital coords if [0,0]
+      .map(r => {
+        const hospitalCoords = r.hospital?.location?.coordinates || [0, 0];
         let coords = hospitalCoords;
         if (coords[0] === 0 && coords[1] === 0) {
-          coords = CITY_COORDS[req.hospital?.city] || CITY_COORDS['Bangalore'];
+          coords = CITY_COORDS[r.hospital?.city] || CITY_COORDS['Bangalore'];
         }
-
         const distance = calculateDistance(donorCoords, coords);
         return {
-          ...req.toObject(),
-          distanceKm: Math.round(distance * 10) / 10, // Round to 1 decimal
-          isNearby: distance <= MAX_DISTANCE_KM
+          ...r.toObject(),
+          distanceKm: Math.round(distance * 10) / 10,
+          isNearby:   distance <= MAX_DISTANCE_KM,
         };
       })
-      .filter(req => req.isNearby) // Only show requests within 20km
+      .filter(r => r.isNearby)
       .sort((a, b) => {
-        // Sort by urgency first, then by distance
-        if (b.aiUrgencyScore !== a.aiUrgencyScore) {
-          return b.aiUrgencyScore - a.aiUrgencyScore;
-        }
+        if (b.aiUrgencyScore !== a.aiUrgencyScore) return b.aiUrgencyScore - a.aiUrgencyScore;
         return a.distanceKm - b.distanceKm;
       })
-      .slice(0, 20); // Limit to 20 requests
+      .slice(0, 20);
 
     res.json({
-      totalMatches: matchedRequests.length,
-      donorBloodGroup: donor.bloodGroup,
-      donorLocation: donor.area,
-      requests: matchedRequests
+      totalMatches:     matchedRequests.length,
+      donorBloodGroup:  donor.bloodGroup,
+      donorLocation:    donor.area,
+      requests:         matchedRequests,
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-module.exports = { createRequest, getHospitalRequests, respondToRequest, getOpenRequests };
+// ────────────────────────────────────────────────────────────────
+// GET /api/requests/:id/metrics  — mobilization metrics for a request
+// ────────────────────────────────────────────────────────────────
+const getRequestMetrics = async (req, res) => {
+  try {
+    const request = await BloodRequest.findById(req.params.id);
+    if (!request) return res.status(404).json({ message: 'Request not found' });
+
+    // Only the hospital that owns it (or admin) can see metrics
+    const hospital = await Hospital.findOne({ user: req.user.id });
+    if (hospital && request.hospital.toString() !== hospital._id.toString()) {
+      return res.status(403).json({ message: 'Not authorised' });
+    }
+
+    const metrics = computeMobilizationMetrics(request);
+    res.json(metrics);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// ────────────────────────────────────────────────────────────────
+// GET /api/requests/metrics/summary — aggregate metrics across requests
+// (Req A evaluation: mobilization rate, time-to-first, etc.)
+// ────────────────────────────────────────────────────────────────
+const getMetricsSummary = async (req, res) => {
+  try {
+    const hospital = await Hospital.findOne({ user: req.user.id });
+    if (!hospital) return res.status(404).json({ message: 'Hospital not found' });
+
+    const since = new Date();
+    since.setDate(since.getDate() - 30);
+
+    const requests = await BloodRequest.find({
+      hospital:  hospital._id,
+      createdAt: { $gte: since },
+    });
+
+    const total     = requests.length;
+    const fulfilled = requests.filter(r => r.status === 'fulfilled').length;
+
+    const alertsPerRequest = requests
+      .filter(r => (r.mobilization?.alertsSent || 0) > 0)
+      .map(r => r.mobilization.alertsSent);
+
+    const timesToFirst = requests
+      .filter(r => r.mobilization?.minutesToFirstConfirmed != null)
+      .map(r => r.mobilization.minutesToFirstConfirmed);
+
+    const avg = arr => arr.length ? Math.round(arr.reduce((s, v) => s + v, 0) / arr.length) : null;
+
+    // Per-region fulfillment (Req B evaluation)
+    const regionStats = {};
+    for (const r of requests) {
+      for (const area of (r.mobilization?.alertedAreas || [])) {
+        if (!regionStats[area]) regionStats[area] = { total: 0, fulfilled: 0 };
+        regionStats[area].total++;
+        if (r.status === 'fulfilled') regionStats[area].fulfilled++;
+      }
+    }
+
+    const regionFulfillment = Object.entries(regionStats).map(([area, s]) => ({
+      area,
+      total:           s.total,
+      fulfilled:       s.fulfilled,
+      fulfillmentRate: s.total > 0 ? Math.round((s.fulfilled / s.total) * 100) : 0,
+    }));
+
+    res.json({
+      period:                '30 days',
+      totalRequests:          total,
+      fulfilledRequests:      fulfilled,
+      fulfillmentRate:        total > 0 ? Math.round((fulfilled / total) * 100) : 0,
+      avgAlertsPerRequest:    avg(alertsPerRequest),
+      avgMinutesToFirstConfirmed: avg(timesToFirst),
+      lowDonorScenarios:      requests.filter(r => r.mobilization?.lowDonorAvailability).length,
+      regionFulfillment,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+module.exports = {
+  createRequest,
+  getHospitalRequests,
+  respondToRequest,
+  getOpenRequests,
+  getRequestMetrics,
+  getMetricsSummary,
+};

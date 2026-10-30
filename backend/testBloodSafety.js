@@ -36,10 +36,10 @@ async function createBloodUnit() {
     }, {
       headers: { Authorization: `Bearer ${hospitalToken}` }
     });
-    
+
     testBloodUnitId = res.data.bloodUnit._id;
     testBloodUnitUnitId = res.data.bloodUnit.unitId; // Store the unitId string
-    console.log('✅ Blood unit created successfully');
+    console.log(' Blood unit created successfully');
     console.log('   Unit ID:', res.data.bloodUnit.unitId);
     console.log('   Blood Group:', res.data.bloodUnit.bloodGroup);
     console.log('   Component:', res.data.bloodUnit.componentType);
@@ -48,13 +48,13 @@ async function createBloodUnit() {
     console.log('   MongoDB ID:', testBloodUnitId, '\n');
     return true;
   } catch (err) {
-    console.error('❌ Create blood unit failed:', err.response?.data?.message || err.message);
+    console.error(' Create blood unit failed:', err.response?.data?.message || err.message);
     return false;
   }
 }
 
 async function updateSafetyTests() {
-  console.log('🧪 Updating safety test results...');
+  console.log(' Updating safety test results...');
   try {
     const res = await axios.put(`${API_URL}/blood-units/${testBloodUnitId}/safety-tests`, {
       hiv: 'negative',
@@ -67,16 +67,16 @@ async function updateSafetyTests() {
     }, {
       headers: { Authorization: `Bearer ${hospitalToken}` }
     });
-    
-    console.log('✅ Safety tests updated successfully');
+
+    console.log('Safety tests updated successfully');
     console.log('   Status:', res.data.bloodUnit.status);
     console.log('   Verified Safe:', res.data.bloodUnit.verifiedSafe);
-    console.log('   All Tests Negative:', Object.keys(res.data.bloodUnit.safetyTests).every(t => 
+    console.log('   All Tests Negative:', Object.keys(res.data.bloodUnit.safetyTests).every(t =>
       res.data.bloodUnit.safetyTests[t].result === 'negative'
     ));
-    
+
     if (res.data.verification) {
-      console.log('   🔍 Auto-Verification Triggered:');
+      console.log('      Auto-Verification Triggered:');
       console.log('      Type:', res.data.verification.verificationType || 'auto');
       console.log('      Outcome:', res.data.verification.outcome);
       console.log('      Checks Passed:', res.data.verification.passed);
@@ -84,7 +84,7 @@ async function updateSafetyTests() {
     console.log();
     return true;
   } catch (err) {
-    console.error('❌ Update safety tests failed:', err.response?.data?.message || err.message);
+    console.error(' Update safety tests failed:', err.response?.data?.message || err.message);
     return false;
   }
 }
@@ -95,7 +95,7 @@ async function manualVerification() {
     const res = await axios.post(`${API_URL}/blood-units/${testBloodUnitId}/verify`, {}, {
       headers: { Authorization: `Bearer ${hospitalToken}` }
     });
-    
+
     console.log('✅ Manual verification completed');
     console.log('   Type:', res.data.verification?.verificationType || 'manual');
     console.log('   Outcome:', res.data.verification?.outcome || 'unknown');
@@ -123,7 +123,7 @@ async function checkCompatibility() {
     }, {
       headers: { Authorization: `Bearer ${hospitalToken}` }
     });
-    
+
     console.log('✅ Compatibility check completed');
     console.log('   Compatible:', res.data.compatible ? '✅ YES' : '❌ NO');
     console.log('   Blood Unit Group:', res.data.bloodUnit.bloodGroup);
@@ -131,7 +131,7 @@ async function checkCompatibility() {
     console.log('   Safety Passed:', res.data.safetyPassed ? '✅ YES' : '❌ NO');
     console.log('   Can Transfuse:', res.data.canTransfuse ? '✅ YES' : '❌ NO');
     console.log('   Recommendation:', res.data.recommendation);
-    
+
     if (res.data.issues && res.data.issues.length > 0) {
       console.log('   ⚠️ Issues:', res.data.issues.join(', '));
     }
@@ -149,7 +149,7 @@ async function getAvailableUnits() {
     const res = await axios.get(`${API_URL}/blood-units/available`, {
       headers: { Authorization: `Bearer ${hospitalToken}` }
     });
-    
+
     console.log('✅ Available units fetched successfully');
     console.log('   Total Available Units:', res.data.bloodUnits?.length || 0);
     console.log('   Summary by Blood Group:', JSON.stringify(res.data.summary || {}, null, 2));
@@ -167,7 +167,7 @@ async function getAllUnits() {
     const res = await axios.get(`${API_URL}/blood-units/all`, {
       headers: { Authorization: `Bearer ${hospitalToken}` }
     });
-    
+
     console.log('✅ All units fetched successfully');
     console.log('   Total Units:', res.data.bloodUnits?.length || 0);
     console.log('   Stats:', JSON.stringify(res.data.stats || {}, null, 2));
@@ -188,7 +188,7 @@ async function logTemperature() {
     }, {
       headers: { Authorization: `Bearer ${hospitalToken}` }
     });
-    
+
     console.log('✅ Temperature logged successfully');
     console.log('   Temperature:', res.data.log?.temperature || 'N/A', '°C');
     console.log('   Compliant:', res.data.log?.compliant ? '✅ YES' : '❌ NO');
@@ -207,7 +207,7 @@ async function getVerificationHistory() {
     const res = await axios.get(`${API_URL}/blood-units/${testBloodUnitId}/verification-history`, {
       headers: { Authorization: `Bearer ${hospitalToken}` }
     });
-    
+
     console.log('✅ Verification history fetched successfully');
     console.log('   Total Verifications:', res.data.verifications?.length || 0);
     (res.data.verifications || []).forEach((v, i) => {
@@ -227,13 +227,13 @@ async function getVerificationHistory() {
 async function runAllTests() {
   console.log('🚀 Starting Blood Safety API Test Suite\n');
   console.log('='.repeat(60), '\n');
-  
+
   const results = {
     total: 0,
     passed: 0,
     failed: 0
   };
-  
+
   const tests = [
     { name: 'Login', fn: login },
     { name: 'Create Blood Unit', fn: createBloodUnit },
@@ -245,7 +245,7 @@ async function runAllTests() {
     { name: 'Log Temperature', fn: logTemperature },
     { name: 'Get Verification History', fn: getVerificationHistory }
   ];
-  
+
   for (const test of tests) {
     results.total++;
     const success = await test.fn();
@@ -256,7 +256,7 @@ async function runAllTests() {
     }
     console.log('='.repeat(60), '\n');
   }
-  
+
   console.log('📊 TEST SUMMARY');
   console.log('='.repeat(60));
   console.log(`Total Tests: ${results.total}`);
@@ -264,7 +264,7 @@ async function runAllTests() {
   console.log(`❌ Failed: ${results.failed}`);
   console.log(`Success Rate: ${((results.passed / results.total) * 100).toFixed(1)}%`);
   console.log('='.repeat(60));
-  
+
   process.exit(results.failed > 0 ? 1 : 0);
 }
 

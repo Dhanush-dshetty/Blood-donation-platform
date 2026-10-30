@@ -13,6 +13,7 @@ const inventoryRoutes = require('./routes/inventoryRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const bloodUnitRoutes = require('./routes/bloodUnitRoutes');
+const donationCampRoutes = require('./routes/donationCampRoutes');
 
 const app = express();
 const server = http.createServer(app);
@@ -39,6 +40,7 @@ app.use('/api/inventory', inventoryRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/blood-units', bloodUnitRoutes);
+app.use('/api/camps', donationCampRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'OK', timestamp: new Date() }));

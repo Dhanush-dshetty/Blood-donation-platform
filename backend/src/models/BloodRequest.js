@@ -31,8 +31,30 @@ const bloodRequestSchema = new mongoose.Schema({
   }],
   // AI urgency prediction score (0-1)
   aiUrgencyScore: { type: Number, default: 0 },
+
+  // ── Mobilization metrics (Req A evaluation) ─────────────────────────
+  mobilization: {
+    // How many donors were alerted for this request
+    alertsSent: { type: Number, default: 0 },
+    // Timestamp of the first donor confirming participation
+    firstConfirmedAt: { type: Date },
+    // Minutes from request creation to first confirmed donor
+    minutesToFirstConfirmed: { type: Number },
+    // Region-level coverage: distinct areas of alerted donors
+    alertedAreas: [{ type: String }],
+    // Whether any eligible donor existed but was not found (low-donor scenario)
+    lowDonorAvailability: { type: Boolean, default: false }
+  },
+
+  // ── Fairness metadata (Req B) ────────────────────────────────────────
+  // Ranking algorithm snapshot used for this request
+  rankingAlgorithm: { type: String, default: 'v2_fairness' },
+
   createdAt: { type: Date, default: Date.now },
   fulfilledAt: { type: Date }
 });
+
+bloodRequestSchema.index({ status: 1, bloodGroup: 1 });
+bloodRequestSchema.index({ hospital: 1, createdAt: -1 });
 
 module.exports = mongoose.model('BloodRequest', bloodRequestSchema);
