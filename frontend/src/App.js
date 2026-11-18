@@ -14,6 +14,7 @@ import MapPage from './pages/MapPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import AdminPanel from './pages/AdminPanel';
 import BloodSafetyPage from './pages/BloodSafetyPage';
+import BloodFinderPage from './pages/BloodFinderPage';
 
 const PrivateRoute = ({ children, role }) => {
   const { user, loading } = useAuth();
@@ -38,6 +39,7 @@ export default function App() {
         <Route path="/"         element={<LandingPage />} />
         <Route path="/login"    element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/find-blood" element={<BloodFinderPage />} />
 
           {/* Hospital */}
           <Route path="/hospital/dashboard" element={<PrivateRoute role="hospital"><HospitalDashboard /></PrivateRoute>} />
@@ -52,6 +54,7 @@ export default function App() {
           <Route path="/donor/chat"      element={<PrivateRoute role="donor"><ChatbotPage /></PrivateRoute>} />
           <Route path="/donor/history"   element={<PrivateRoute role="donor"><DonorHistoryPage /></PrivateRoute>} />
           <Route path="/donor/map"       element={<PrivateRoute role="donor"><MapPage /></PrivateRoute>} />
+          <Route path="/donor/find-blood" element={<PrivateRoute role="donor"><BloodFinderPage /></PrivateRoute>} />
 
           {/* Admin */}
           <Route path="/admin"           element={<PrivateRoute role="admin"><AdminPanel /></PrivateRoute>} />

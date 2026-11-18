@@ -224,6 +224,7 @@ export default function DonorDashboard() {
   };
 
   const navLinks = [
+    { to: '/donor/find-blood', label: '🩸 Find Blood' },
     { to: '/donor/chat', label: 'AI Assistant' },
     { to: '/donor/history', label: 'History' },
     { to: '/donor/map', label: 'Map' },

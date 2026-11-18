@@ -104,4 +104,210 @@ router.put('/profile', protect, hospitalOnly, async (req, res) => {
   }
 });
 
+// ── GET /api/hospitals/nearby-blood ───────────────────────────────────
+// Public endpoint: find hospitals near a location that have safe blood
+router.get('/nearby-blood', async (req, res) => {
+  try {
+    const lat = parseFloat(req.query.lat);
+    const lng = parseFloat(req.query.lng);
+    const bloodGroup = req.query.bloodGroup || 'O+';
+    const radiusKm = parseFloat(req.query.radiusKm) || 100;
+
+    if (isNaN(lat) || isNaN(lng)) {
+      return res.status(400).json({ message: 'lat and lng query parameters are required.' });
+    }
+
+    // Blood group compatibility map (what a patient can receive)
+    const COMPAT = {
+      'A+':  ['A+', 'A-', 'O+', 'O-'],
+      'A-':  ['A-', 'O-'],
+      'B+':  ['B+', 'B-', 'O+', 'O-'],
+      'B-':  ['B-', 'O-'],
+      'AB+': ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'],
+      'AB-': ['A-', 'B-', 'AB-', 'O-'],
+      'O+':  ['O+', 'O-'],
+      'O-':  ['O-']
+    };
+
+    const ALL_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+    const compatibleGroups = (COMPAT[bloodGroup] || []).filter(g => g !== bloodGroup);
+
+    // 1. Find hospitals within radius using $nearSphere (sorted by proximity)
+    const hospitals = await Hospital.find({
+      location: {
+        $nearSphere: {
+          $geometry: { type: 'Point', coordinates: [lng, lat] },
+          $maxDistance: radiusKm * 1000
+        }
+      },
+      // Exclude hospitals with no meaningful coordinates
+      'location.coordinates.0': { $ne: 0 },
+      'location.coordinates.1': { $ne: 0 }
+    }).select('hospitalName address city phone operatingHours facilityType location');
+
+    if (hospitals.length === 0) {
+      return res.json([]);
+    }
+
+    const hospitalIds = hospitals.map(h => h._id);
+    const now = new Date();
+
+    // 2. Aggregate BloodInventory: get units per blood group per hospital (safe + not expired)
+    const inventoryAgg = await BloodInventory.aggregate([
+      {
+        $match: {
+          hospital: { $in: hospitalIds },
+          status: 'safe',
+          expiryDate: { $gt: now }
+        }
+      },
+      {
+        $group: {
+          _id: { hospital: '$hospital', bloodGroup: '$bloodGroup' },
+          totalUnits: { $sum: '$units' }
+        }
+      }
+    ]);
+
+    // Build a map: hospitalId -> { bloodGroup -> units }
+    const invMap = {};
+    inventoryAgg.forEach(item => {
+      const hid = item._id.hospital.toString();
+      if (!invMap[hid]) invMap[hid] = {};
+      invMap[hid][item._id.bloodGroup] = item.totalUnits;
+    });
+
+    // Haversine distance formula
+    function haversineKm(lat1, lng1, lat2, lng2) {
+      const R = 6371;
+      const dLat = ((lat2 - lat1) * Math.PI) / 180;
+      const dLng = ((lng2 - lng1) * Math.PI) / 180;
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos((lat1 * Math.PI) / 180) *
+          Math.cos((lat2 * Math.PI) / 180) *
+          Math.sin(dLng / 2) *
+          Math.sin(dLng / 2);
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    // 3. Build enriched results
+    const results = hospitals.map(h => {
+      const hid = h._id.toString();
+      const groupMap = invMap[hid] || {};
+
+      // inventoryByGroup: all 8 blood groups, default 0
+      const inventoryByGroup = {};
+      ALL_GROUPS.forEach(g => { inventoryByGroup[g] = groupMap[g] || 0; });
+
+      const exactMatchUnits = inventoryByGroup[bloodGroup] || 0;
+
+      // compatibleUnits: compatible groups that are NOT the exact match
+      let compatibleUnits = 0;
+      const compatibleBreakdown = {};
+      compatibleGroups.forEach(g => {
+        const units = inventoryByGroup[g] || 0;
+        if (units > 0) {
+          compatibleBreakdown[g] = units;
+          compatibleUnits += units;
+        }
+      });
+
+      const hLng = h.location.coordinates[0];
+      const hLat = h.location.coordinates[1];
+      const distanceKm = parseFloat(haversineKm(lat, lng, hLat, hLng).toFixed(1));
+      const etaMinutes = Math.round((distanceKm / 30) * 60);
+
+      let stockStatus = 'out_of_stock';
+      if (exactMatchUnits > 2) stockStatus = 'in_stock';
+      else if (exactMatchUnits >= 1) stockStatus = 'low_stock';
+
+      return {
+        _id: h._id,
+        hospitalName: h.hospitalName,
+        address: h.address,
+        city: h.city,
+        phone: h.phone,
+        operatingHours: h.operatingHours,
+        facilityType: h.facilityType,
+        location: h.location,
+        distanceKm,
+        etaMinutes,
+        exactMatchUnits,
+        compatibleUnits,
+        compatibleBreakdown,
+        inventoryByGroup,
+        stockStatus
+      };
+    });
+
+    // Sort by distanceKm ascending (closest first)
+    results.sort((a, b) => a.distanceKm - b.distanceKm);
+
+    res.json(results);
+  } catch (err) {
+    console.error('nearby-blood error:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ── GET /api/hospitals/:id/inventory ─────────────────────────────────
+// Public: full inventory breakdown for a single hospital
+router.get('/:id/inventory', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const now = new Date();
+    const ALL_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+
+    const hospital = await Hospital.findById(id).select('hospitalName address city phone operatingHours facilityType location');
+    if (!hospital) return res.status(404).json({ message: 'Hospital not found' });
+
+    const inventoryAgg = await BloodInventory.aggregate([
+      {
+        $match: {
+          hospital: hospital._id,
+          status: 'safe',
+          expiryDate: { $gt: now }
+        }
+      },
+      {
+        $group: {
+          _id: '$bloodGroup',
+          totalUnits: { $sum: '$units' },
+          earliestExpiry: { $min: '$expiryDate' }
+        }
+      }
+    ]);
+
+    const inventoryByGroup = {};
+    const expiryByGroup = {};
+    ALL_GROUPS.forEach(g => { inventoryByGroup[g] = 0; expiryByGroup[g] = null; });
+    inventoryAgg.forEach(item => {
+      inventoryByGroup[item._id] = item.totalUnits;
+      expiryByGroup[item._id] = item.earliestExpiry;
+    });
+
+    const totalSafeUnits = ALL_GROUPS.reduce((sum, g) => sum + inventoryByGroup[g], 0);
+
+    res.json({
+      hospital: {
+        _id: hospital._id,
+        hospitalName: hospital.hospitalName,
+        address: hospital.address,
+        city: hospital.city,
+        phone: hospital.phone,
+        operatingHours: hospital.operatingHours,
+        facilityType: hospital.facilityType
+      },
+      inventoryByGroup,
+      expiryByGroup,
+      totalSafeUnits,
+      asOf: now
+    });
+  } catch (err) {
+    console.error('hospital inventory error:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
 module.exports = router;
