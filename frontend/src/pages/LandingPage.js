@@ -1,120 +1,248 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-
-const styles = {
-  hero: {
-    background: 'linear-gradient(135deg, #c0392b 0%, #8e1a12 100%)',
-    color: 'white',
-    padding: '80px 40px',
-    textAlign: 'center',
-    minHeight: '100vh',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: { fontSize: '3rem', fontWeight: 700, marginBottom: 16 },
-  subtitle: { fontSize: '1.3rem', maxWidth: 600, marginBottom: 40, opacity: 0.9 },
-  btnRow: { display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: 'center' },
-  btn: {
-    padding: '14px 32px', borderRadius: 8, border: 'none',
-    fontSize: '1rem', fontWeight: 600, cursor: 'pointer'
-  },
-  features: { padding: '60px 40px', background: 'white' },
-  featureGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-    gap: 24, maxWidth: 1000, margin: '0 auto'
-  },
-  card: {
-    background: '#fff5f5', borderRadius: 12,
-    padding: 24, borderLeft: '4px solid #c0392b'
-  },
-  cardTitle: { fontSize: '1.1rem', fontWeight: 700, marginBottom: 8, color: '#c0392b' },
-};
+import Navbar from '../components/Navbar';
 
 export default function LandingPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  console.log('LandingPage rendered, user:', user);
-
   const handleDashboard = () => {
-    console.log('Button clicked! User:', user);
     if (user) {
       const route = user.role === 'hospital' ? '/hospital/dashboard' : user.role === 'admin' ? '/admin' : '/donor/dashboard';
-      console.log('Navigating to:', route);
       navigate(route);
     } else {
-      console.log('Navigating to login');
       navigate('/login');
     }
   };
 
   return (
-    <div>
-      <div style={styles.hero}>
-        <div style={{ fontSize: '4rem', marginBottom: 16 }}>🩸</div>
-        <h1 style={styles.title}>Integrated Blood Donation &amp;<br />Safety Verification Platform</h1>
-        <p style={styles.subtitle}>
-          Connecting hospitals with nearby donors in real-time. Every unit verified.
-          Every transfusion safe. Powered by AI.
-        </p>
-        <div style={styles.btnRow}>
-          <button 
-            style={{ 
-              ...styles.btn, 
-              background: 'white', 
-              color: '#c0392b',
-              position: 'relative',
-              zIndex: 1000
-            }} 
-            onClick={handleDashboard}
-            onMouseDown={() => console.log('Mouse down on button')}
-          >
-            {user ? 'Go to Dashboard' : 'Login'}
-          </button>
-          {!user && (
-            <button 
-              style={{ 
-                ...styles.btn, 
-                background: 'transparent', 
-                color: 'white', 
-                border: '2px solid white',
-                position: 'relative',
-                zIndex: 1000
-              }}
-              onClick={() => {
-                console.log('Register clicked');
-                navigate('/register');
+    <div className="page-wrapper">
+      <Navbar />
+
+      {/* Hero Section */}
+      <section style={{
+        position: 'relative',
+        background: 'radial-gradient(circle at 50% 20%, #fef2f2 0%, #ffffff 70%)',
+        borderBottom: '1px solid #e2e8f0',
+        padding: '70px 20px 80px',
+        textAlign: 'center',
+        overflow: 'hidden'
+      }}>
+        <div style={{ maxWidth: 880, margin: '0 auto', position: 'relative', zIndex: 2 }}>
+          {/* Badge */}
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '6px 16px',
+            borderRadius: 9999,
+            background: '#ffffff',
+            border: '1px solid #fecaca',
+            color: '#dc2626',
+            fontSize: '0.825rem',
+            fontWeight: 700,
+            boxShadow: '0 2px 6px rgba(220, 38, 38, 0.08)',
+            marginBottom: 24
+          }}>
+            <span>🩸</span>
+            <span>NEXT-GEN BLOOD SAFETY & REGIONAL LOGISTICS</span>
+          </div>
+
+          <h1 style={{
+            fontSize: 'clamp(2.2rem, 5vw, 3.6rem)',
+            fontWeight: 800,
+            color: '#0f172a',
+            lineHeight: 1.15,
+            letterSpacing: '-0.03em',
+            marginBottom: 20
+          }}>
+            Integrated Blood Donation & <br />
+            <span style={{
+              background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent'
+            }}>
+              Digital Safety Verification
+            </span>
+          </h1>
+
+          <p style={{
+            fontSize: 'clamp(1rem, 2vw, 1.25rem)',
+            color: '#475569',
+            maxWidth: 680,
+            margin: '0 auto 36px',
+            lineHeight: 1.6
+          }}>
+            Connecting hospitals and verified donors in real time. Every unit digitally inspected, 
+            every transfer tracked, and every patient safeguarded through intelligent medical verification.
+          </p>
+
+          <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button
+              onClick={handleDashboard}
+              className="btn btn-primary"
+              style={{ padding: '14px 32px', fontSize: '1rem', borderRadius: 10 }}
+            >
+              <span>{user ? 'Open Dashboard →' : 'Sign In to Portal'}</span>
+            </button>
+
+            <Link
+              to="/find-blood"
+              className="btn btn-secondary"
+              style={{ padding: '14px 28px', fontSize: '1rem', borderRadius: 10, borderColor: '#cbd5e1' }}
+            >
+              <span>🔍 Find Blood (100km Search)</span>
+            </Link>
+
+            {!user && (
+              <button
+                onClick={() => navigate('/register')}
+                className="btn btn-outline-primary"
+                style={{ padding: '14px 28px', fontSize: '1rem', borderRadius: 10 }}
+              >
+                <span>Register as Donor / Hospital</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Stats Strip */}
+        <div style={{
+          maxWidth: 960,
+          margin: '50px auto 0',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: 16,
+          background: '#ffffff',
+          padding: '24px',
+          borderRadius: 16,
+          border: '1px solid #e2e8f0',
+          boxShadow: '0 4px 12px rgba(15, 23, 42, 0.05)'
+        }}>
+          <div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#dc2626' }}>102+</div>
+            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#64748b' }}>Hospitals in Network</div>
+          </div>
+          <div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a' }}>100km</div>
+            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#64748b' }}>Emergency Search Radius</div>
+          </div>
+          <div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#059669' }}>100%</div>
+            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#64748b' }}>Lab-Verified Units</div>
+          </div>
+          <div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#d97706' }}>42-Day</div>
+            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#64748b' }}>RBC Expiry Tracking</div>
+          </div>
+        </div>
+      </section>
+
+      {/* Feature Grid Section */}
+      <section style={{ padding: '80px 20px', maxWidth: 1200, margin: '0 auto', width: '100%' }}>
+        <div style={{ textAlign: 'center', marginBottom: 50 }}>
+          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#dc2626', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+            Comprehensive Architecture
+          </span>
+          <h2 style={{ fontSize: '2.2rem', fontWeight: 800, color: '#0f172a', marginTop: 8 }}>
+            Engineered for Clinical Reliability
+          </h2>
+          <p style={{ color: '#64748b', fontSize: '1.05rem', maxWidth: 560, margin: '10px auto 0' }}>
+            Designed with medical rigor to eliminate transfusion mismatch, reduce wastage, and speed up emergency donor dispatch.
+          </p>
+        </div>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+          gap: 24
+        }}>
+          {[
+            {
+              icon: '📍',
+              title: 'Location-Based Matching',
+              desc: 'Real-time geospatial indexing identifies the closest eligible donors and peer blood banks within a 100km radius during acute shortages.'
+            },
+            {
+              icon: '🤖',
+              title: 'AI Donor Ranking Engine',
+              desc: 'Fairness-aware algorithms evaluate donor response probability, historical donation dates, and fatigue factors to alert the best-suited donors.'
+            },
+            {
+              icon: '🛡️',
+              title: 'Digital Safety Verification',
+              desc: 'Strict multi-tier lab screening verifies HIV, Hepatitis B/C, and Syphilis tests alongside temperature and hemoglobin biomarkers before approval.'
+            },
+            {
+              icon: '📊',
+              title: 'AI Demand Forecasting',
+              desc: 'Predictive intelligence models blood usage patterns to help transfusion officers anticipate shortages and maintain optimal reserve levels.'
+            },
+            {
+              icon: '🔔',
+              title: 'Instant Socket.IO Alerts',
+              desc: 'High-priority emergency alerts are delivered instantly to active donors and neighboring hospital rooms with ambulance transit ETAs.'
+            },
+            {
+              icon: '💬',
+              title: 'Clinical AI Assistant',
+              desc: '24/7 interactive assistant guiding donors on biological eligibility criteria, donation intervals, and prep guidelines.'
+            },
+          ].map((feature) => (
+            <div
+              key={feature.title}
+              className="modern-card"
+              style={{
+                padding: '28px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px'
               }}
             >
-              Register
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div style={styles.features}>
-        <h2 style={{ textAlign: 'center', marginBottom: 32, color: '#c0392b' }}>Platform Features</h2>
-        <div style={styles.featureGrid}>
-          {[
-            { icon: '📍', title: 'Location-Based Matching', desc: 'Real-time geolocation finds the nearest eligible donors within minutes during emergencies.' },
-            { icon: '🤖', title: 'AI Donor Ranking', desc: 'Machine learning ranks donors by response rate, donation history, and proximity for faster mobilization.' },
-            { icon: '🛡️', title: 'Digital Safety Verification', desc: 'Automated rule-based and AI-powered checks verify blood test results, expiry, and compatibility before transfusion.' },
-            { icon: '📊', title: 'Demand Forecasting', desc: 'AI predicts future blood demand per group, helping hospitals maintain optimal stock levels.' },
-            { icon: '🔔', title: 'Real-Time Alerts', desc: 'Socket.IO powered instant alerts notify donors the moment a matching request comes in.' },
-            { icon: '💬', title: 'Donor AI Chatbot', desc: 'An intelligent chatbot guides donors through eligibility, scheduling, and FAQs 24/7.' },
-          ].map(f => (
-            <div key={f.title} style={styles.card}>
-              <div style={{ fontSize: '2rem', marginBottom: 8 }}>{f.icon}</div>
-              <div style={styles.cardTitle}>{f.title}</div>
-              <p style={{ color: '#666', fontSize: '0.95rem' }}>{f.desc}</p>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                backgroundColor: '#fef2f2',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '1.5rem',
+                border: '1px solid #fecaca'
+              }}>
+                {feature.icon}
+              </div>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f172a' }}>
+                {feature.title}
+              </h3>
+              <p style={{ color: '#64748b', fontSize: '0.925rem', lineHeight: 1.6 }}>
+                {feature.desc}
+              </p>
             </div>
           ))}
         </div>
-      </div>
+      </section>
+
+      {/* Footer */}
+      <footer style={{
+        marginTop: 'auto',
+        borderTop: '1px solid #e2e8f0',
+        backgroundColor: '#ffffff',
+        padding: '32px 20px',
+        textAlign: 'center',
+        color: '#64748b',
+        fontSize: '0.875rem'
+      }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, color: '#0f172a' }}>
+            <span>🩸</span> BloodPlatform — Digital Blood Safety & Emergency Logistics
+          </div>
+          <div>
+            Secure • Compliant • Real-time
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

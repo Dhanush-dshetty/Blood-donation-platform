@@ -333,28 +333,42 @@ export default function MapPage() {
   const defaultCenter = [12.8703, 74.8431];
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#0f172a', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#0f172a', fontFamily: 'var(--font-sans)' }}>
       
       {/* ── Top Navigation Bar ── */}
       <header style={{
-        background: 'linear-gradient(90deg, #991b1b 0%, #dc2626 100%)',
-        color: 'white',
-        padding: '10px 20px',
+        background: '#ffffff',
+        borderBottom: '1px solid #e2e8f0',
+        color: '#0f172a',
+        padding: '12px 24px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.25)',
+        boxShadow: '0 1px 3px 0 rgba(15, 23, 42, 0.05)',
         zIndex: 1000,
         flexShrink: 0
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{ fontSize: '1.8rem', lineHeight: 1 }}>🗺️</div>
+          <div style={{
+            width: 38,
+            height: 38,
+            borderRadius: 10,
+            background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#fff',
+            fontSize: '1.25rem',
+            boxShadow: '0 2px 6px rgba(220, 38, 38, 0.25)'
+          }}>
+            🗺️
+          </div>
           <div>
-            <div style={{ fontWeight: 800, fontSize: '1.15rem', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: 8 }}>
-              LifeLine Healthcare Map & Directory
-              <span style={{ fontSize: '0.72rem', background: 'rgba(255,255,255,0.25)', padding: '2px 8px', borderRadius: 12, fontWeight: 600 }}>LIVE</span>
+            <div style={{ fontWeight: 800, fontSize: '1.15rem', color: '#0f172a', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: 8 }}>
+              LifeLine GIS Map &amp; Emergency Radar
+              <span style={{ fontSize: '0.7rem', background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0', padding: '2px 8px', borderRadius: 9999, fontWeight: 700 }}>LIVE</span>
             </div>
-            <div style={{ fontSize: '0.78rem', opacity: 0.9 }}>
+            <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 500 }}>
               Hospitals • Blood Banks • Donation Camps • Live Donors • Emergency Routing
             </div>
           </div>
@@ -362,14 +376,14 @@ export default function MapPage() {
 
         {/* City Filter & Search Bar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.15)', borderRadius: 8, padding: '3px 8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: 8, padding: '4px 10px' }}>
             <span style={{ fontSize: '0.85rem', marginRight: 6 }}>📍</span>
             <select
               value={selectedCity}
               onChange={(e) => handleCityChange(e.target.value)}
               style={{
                 background: 'transparent',
-                color: 'white',
+                color: '#0f172a',
                 border: 'none',
                 fontWeight: 700,
                 fontSize: '0.88rem',
@@ -377,9 +391,9 @@ export default function MapPage() {
                 cursor: 'pointer'
               }}
             >
-              <option value="All" style={{ color: '#333' }}>🌍 All Cities</option>
+              <option value="All">🌍 All Cities</option>
               {Object.keys(CITY_COORDS).sort().map(c => (
-                <option key={c} value={c} style={{ color: '#333' }}>{c}</option>
+                <option key={c} value={c}>{c}</option>
               ))}
             </select>
           </div>
@@ -387,14 +401,14 @@ export default function MapPage() {
           <Link
             to={backLink}
             style={{
-              background: 'white',
-              color: '#991b1b',
-              padding: '6px 14px',
-              borderRadius: 6,
+              background: '#fef2f2',
+              color: '#dc2626',
+              border: '1px solid #fecaca',
+              padding: '8px 16px',
+              borderRadius: 8,
               fontWeight: 700,
               fontSize: '0.85rem',
               textDecoration: 'none',
-              boxShadow: '0 2px 5px rgba(0,0,0,0.15)',
               display: 'flex',
               alignItems: 'center',
               gap: 6

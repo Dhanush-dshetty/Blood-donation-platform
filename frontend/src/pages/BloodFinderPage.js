@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import axios from 'axios';
+import Navbar from '../components/Navbar';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
@@ -40,37 +41,45 @@ const CITY_PRESETS = [
 
 const RADIUS_OPTIONS = [25, 50, 100];
 
-// ─── Spinner ───────────────────────────────────────────────────────────────
 function Spinner() {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 0', gap: 16 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '56px 0', gap: 14 }}>
       <div style={{
-        width: 48, height: 48, border: '5px solid #fde0de',
-        borderTopColor: '#c0392b', borderRadius: '50%',
+        width: 44, height: 44, border: '4px solid #fecaca',
+        borderTopColor: '#dc2626', borderRadius: '50%',
         animation: 'spin 0.8s linear infinite'
       }} />
-      <div style={{ color: '#c0392b', fontWeight: 600 }}>Searching nearby hospitals…</div>
+      <div style={{ color: '#dc2626', fontWeight: 700, fontSize: '0.95rem' }}>
+        Searching nearby hospitals and verified blood banks...
+      </div>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
 
-// ─── Stock Badge ────────────────────────────────────────────────────────────
 function StockBadge({ status, units }) {
   const cfg = {
-    in_stock:    { bg: '#e8f8e8', color: '#27ae60', icon: '🟢', label: `In Stock (${units} units)` },
-    low_stock:   { bg: '#fff8e1', color: '#f39c12', icon: '🟡', label: `Low Stock (${units} units)` },
-    out_of_stock:{ bg: '#fdecea', color: '#c0392b', icon: '🔴', label: 'Out of Stock' },
-  }[status] || { bg: '#f0f0f0', color: '#888', icon: '⚫', label: 'Unknown' };
+    in_stock:    { bg: '#ecfdf5', color: '#059669', border: '#a7f3d0', label: `In Stock (${units} units)` },
+    low_stock:   { bg: '#fffbeb', color: '#d97706', border: '#fde68a', label: `Low Stock (${units} units)` },
+    out_of_stock:{ bg: '#fef2f2', color: '#dc2626', border: '#fecaca', label: 'Out of Stock' },
+  }[status] || { bg: '#f1f5f9', color: '#64748b', border: '#cbd5e1', label: 'Unknown' };
 
   return (
-    <span style={{ background: cfg.bg, color: cfg.color, padding: '4px 12px', borderRadius: 20, fontWeight: 700, fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
-      {cfg.icon} {cfg.label}
+    <span style={{
+      background: cfg.bg,
+      color: cfg.color,
+      border: `1px solid ${cfg.border}`,
+      padding: '4px 12px',
+      borderRadius: 9999,
+      fontWeight: 700,
+      fontSize: '0.8rem',
+      whiteSpace: 'nowrap'
+    }}>
+      {cfg.label}
     </span>
   );
 }
 
-// ─── Hospital Card ──────────────────────────────────────────────────────────
 function HospitalCard({ hospital, bloodGroup }) {
   const [expanded, setExpanded] = useState(false);
   const [inventory, setInventory] = useState(null);
@@ -98,37 +107,38 @@ function HospitalCard({ hospital, bloodGroup }) {
   };
 
   const facilityLabel = hospital.facilityType === 'blood_bank' ? 'Blood Bank' : 'Hospital';
-  const facilityColor = hospital.facilityType === 'blood_bank' ? '#8e44ad' : '#2980b9';
 
   return (
-    <div style={{
-      background: 'white', borderRadius: 14, boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
-      marginBottom: 16, overflow: 'hidden',
-      border: hospital.stockStatus === 'in_stock' ? '1.5px solid #d5f5e3' :
-              hospital.stockStatus === 'low_stock' ? '1.5px solid #fdebd0' : '1.5px solid #fdecea'
-    }}>
+    <div className="modern-card" style={{ marginBottom: 16 }}>
       {/* Card Header */}
-      <div style={{ padding: '18px 20px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ flex: 1, minWidth: 220 }}>
+      <div style={{ padding: '20px 22px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 240 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
-            <span style={{ fontWeight: 700, fontSize: '1.05rem', color: '#1a1a1a' }}>{hospital.hospitalName}</span>
-            <span style={{ background: facilityColor + '1a', color: facilityColor, padding: '2px 8px', borderRadius: 4, fontSize: '0.76rem', fontWeight: 700 }}>
+            <h3 style={{ fontWeight: 800, fontSize: '1.1rem', color: '#0f172a', margin: 0 }}>
+              {hospital.hospitalName}
+            </h3>
+            <span className="badge badge-neutral" style={{ textTransform: 'capitalize' }}>
               {facilityLabel}
             </span>
           </div>
-          <div style={{ color: '#666', fontSize: '0.86rem', marginBottom: 6 }}>
-            {[hospital.address, hospital.city].filter(Boolean).join(', ')}
+
+          <div style={{ color: '#475569', fontSize: '0.875rem', marginBottom: 4 }}>
+            📍 {[hospital.address, hospital.city].filter(Boolean).join(', ')}
           </div>
+
           {hospital.operatingHours && (
-            <div style={{ color: '#888', fontSize: '0.8rem' }}>🕐 {hospital.operatingHours}</div>
+            <div style={{ color: '#64748b', fontSize: '0.8rem' }}>
+              🕒 {hospital.operatingHours}
+            </div>
           )}
         </div>
+
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
           <div style={{ display: 'flex', gap: 6 }}>
-            <span style={{ background: '#e8f4f8', color: '#2980b9', padding: '4px 10px', borderRadius: 20, fontWeight: 700, fontSize: '0.82rem' }}>
-              📍 {hospital.distanceKm} km
+            <span style={{ background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', padding: '3px 10px', borderRadius: 9999, fontWeight: 700, fontSize: '0.8rem' }}>
+              📏 {hospital.distanceKm} km
             </span>
-            <span style={{ background: '#f0f0f0', color: '#555', padding: '4px 10px', borderRadius: 20, fontWeight: 600, fontSize: '0.82rem' }}>
+            <span style={{ background: '#f1f5f9', color: '#475569', padding: '3px 10px', borderRadius: 9999, fontWeight: 600, fontSize: '0.8rem' }}>
               ~{hospital.etaMinutes} min drive
             </span>
           </div>
@@ -136,15 +146,15 @@ function HospitalCard({ hospital, bloodGroup }) {
         </div>
       </div>
 
-      {/* Compatible alternatives */}
+      {/* Compatible alternatives note */}
       {hospital.stockStatus === 'out_of_stock' && hospital.compatibleUnits > 0 && (
-        <div style={{ margin: '0 20px 12px', background: '#fffbf0', border: '1px solid #fdebd0', borderRadius: 8, padding: '10px 14px' }}>
-          <div style={{ fontWeight: 600, color: '#d68910', fontSize: '0.86rem', marginBottom: 4 }}>
-            ⚡ Compatible alternatives available:
+        <div style={{ margin: '0 22px 14px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '10px 14px' }}>
+          <div style={{ fontWeight: 700, color: '#92400e', fontSize: '0.85rem', marginBottom: 4 }}>
+            ⚡ Compatible alternatives available in emergency:
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {Object.entries(hospital.compatibleBreakdown).map(([grp, units]) => (
-              <span key={grp} style={{ background: '#fff3cd', color: '#856404', padding: '3px 10px', borderRadius: 12, fontSize: '0.82rem', fontWeight: 600 }}>
+              <span key={grp} style={{ background: '#fef3c7', color: '#78350f', padding: '2px 8px', borderRadius: 6, fontSize: '0.8rem', fontWeight: 700 }}>
                 {grp}: {units} units
               </span>
             ))}
@@ -153,48 +163,75 @@ function HospitalCard({ hospital, bloodGroup }) {
       )}
 
       {/* Action Buttons */}
-      <div style={{ padding: '0 20px 16px', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div style={{ padding: '0 22px 18px', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', borderTop: '1px solid #f8fafc', paddingTop: 14 }}>
         {hospital.phone && (
-          <a href={`tel:${hospital.phone}`}
-            style={{ padding: '8px 16px', background: '#e8f8e8', color: '#27ae60', border: 'none', borderRadius: 8, fontWeight: 700, textDecoration: 'none', fontSize: '0.86rem', cursor: 'pointer' }}>
-            📞 Call
+          <a
+            href={`tel:${hospital.phone}`}
+            className="btn btn-secondary"
+            style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+          >
+            📞 Call Blood Bank
           </a>
         )}
-        <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
-          style={{ padding: '8px 16px', background: '#e8f4f8', color: '#2980b9', border: 'none', borderRadius: 8, fontWeight: 700, textDecoration: 'none', fontSize: '0.86rem', cursor: 'pointer' }}>
-          🗺️ Directions
+        <a
+          href={mapsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="btn btn-secondary"
+          style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+        >
+          🗺️ Get Directions
         </a>
-        <button onClick={handleExpand}
-          style={{ padding: '8px 16px', background: '#fdf2f2', color: '#c0392b', border: '1px solid #f5c6c6', borderRadius: 8, fontWeight: 600, fontSize: '0.86rem', cursor: 'pointer', marginLeft: 'auto' }}>
-          {expanded ? '▲ Hide Inventory' : 'View Full Inventory →'}
+        <button
+          onClick={handleExpand}
+          className="btn btn-outline-primary"
+          style={{ padding: '8px 16px', fontSize: '0.85rem', marginLeft: 'auto' }}
+        >
+          {expanded ? '▲ Hide Inventory Matrix' : 'View Full Blood Reserves →'}
         </button>
       </div>
 
-      {/* Expandable Inventory Table */}
+      {/* Expanded Inventory Matrix */}
       {expanded && (
-        <div style={{ borderTop: '1px solid #f0f0f0', padding: '16px 20px', background: '#fafafa' }}>
+        <div style={{ borderTop: '1px solid #f1f5f9', padding: '18px 22px', background: '#f8fafc' }}>
           {loadingInv ? (
-            <div style={{ textAlign: 'center', color: '#c0392b', padding: '16px 0', fontWeight: 600 }}>Loading inventory…</div>
+            <div style={{ textAlign: 'center', color: '#dc2626', padding: '16px 0', fontWeight: 600 }}>Loading inventory…</div>
           ) : inventory?.error ? (
-            <div style={{ color: '#c0392b', fontSize: '0.88rem' }}>Could not load inventory.</div>
+            <div style={{ color: '#dc2626', fontSize: '0.875rem' }}>Could not load hospital inventory breakdown.</div>
           ) : (
             <>
-              <div style={{ fontWeight: 700, color: '#333', marginBottom: 10, fontSize: '0.9rem' }}>📋 Blood Inventory (Safe & Non-Expired)</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+              <div style={{ fontWeight: 700, color: '#0f172a', marginBottom: 12, fontSize: '0.9rem' }}>
+                Verified Blood Stock Breakdown:
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(75px, 1fr))', gap: 8 }}>
                 {ALL_GROUPS.map(grp => {
                   const units = inventory?.inventoryByGroup?.[grp] ?? hospital.inventoryByGroup?.[grp] ?? 0;
                   const isMatch = grp === bloodGroup;
                   const hasStock = units > 0;
+
                   return (
-                    <div key={grp} style={{
-                      background: isMatch ? (hasStock ? '#e8f8e8' : '#fdecea') : (hasStock ? '#f0f7ff' : '#f9f9f9'),
-                      border: isMatch ? (hasStock ? '1.5px solid #27ae60' : '1.5px solid #e74c3c') : '1px solid #e0e0e0',
-                      borderRadius: 8, padding: '10px', textAlign: 'center'
-                    }}>
-                      <div style={{ fontWeight: 700, color: isMatch ? (hasStock ? '#27ae60' : '#c0392b') : '#333', fontSize: '1rem' }}>{grp}</div>
-                      <div style={{ fontWeight: 700, fontSize: '1.1rem', color: hasStock ? '#1a1a1a' : '#bbb' }}>{units}</div>
-                      <div style={{ fontSize: '0.72rem', color: '#888' }}>units</div>
-                      {isMatch && <div style={{ fontSize: '0.68rem', marginTop: 2, color: isMatch ? (hasStock ? '#27ae60' : '#c0392b') : '#888' }}>★ Requested</div>}
+                    <div
+                      key={grp}
+                      style={{
+                        background: isMatch ? (hasStock ? '#ecfdf5' : '#fef2f2') : (hasStock ? '#ffffff' : '#f1f5f9'),
+                        border: isMatch ? (hasStock ? '1.5px solid #059669' : '1.5px solid #dc2626') : '1px solid #e2e8f0',
+                        borderRadius: 8,
+                        padding: '8px 6px',
+                        textAlign: 'center'
+                      }}
+                    >
+                      <div style={{ fontWeight: 800, color: isMatch ? (hasStock ? '#059669' : '#dc2626') : '#0f172a', fontSize: '0.9rem' }}>
+                        {grp}
+                      </div>
+                      <div style={{ fontWeight: 800, fontSize: '1.1rem', color: hasStock ? '#0f172a' : '#94a3b8' }}>
+                        {units}
+                      </div>
+                      <div style={{ fontSize: '0.65rem', color: '#64748b' }}>units</div>
+                      {isMatch && (
+                        <div style={{ fontSize: '0.65rem', fontWeight: 700, marginTop: 2, color: isMatch ? (hasStock ? '#059669' : '#dc2626') : '#64748b' }}>
+                          ★ Target
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -207,33 +244,30 @@ function HospitalCard({ hospital, bloodGroup }) {
   );
 }
 
-// ─── Summary Stats Bar ──────────────────────────────────────────────────────
 function SummaryBar({ results, bloodGroup }) {
   const withStock = results.filter(h => h.stockStatus !== 'out_of_stock');
   const totalExact = results.reduce((s, h) => s + h.exactMatchUnits, 0);
   const nearest = withStock[0];
 
   const stats = [
-    { icon: '🏥', label: 'Hospitals Found', value: results.length },
-    { icon: '✅', label: 'With Stock', value: withStock.length },
-    { icon: '🩸', label: `${bloodGroup} Units`, value: totalExact },
-    { icon: '📍', label: 'Nearest with Stock', value: nearest ? `${nearest.distanceKm} km` : '—' },
+    { label: 'Hospitals Located', value: results.length, color: '#0f172a' },
+    { label: 'Facilities with Stock', value: withStock.length, color: '#059669' },
+    { label: `${bloodGroup} Units Available`, value: totalExact, color: '#dc2626' },
+    { label: 'Nearest Stock Proximity', value: nearest ? `${nearest.distanceKm} km` : 'None', color: '#2563eb' },
   ];
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 20 }}>
       {stats.map(s => (
-        <div key={s.label} style={{ background: 'white', borderRadius: 10, padding: '14px 16px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', textAlign: 'center' }}>
-          <div style={{ fontSize: '1.4rem', marginBottom: 4 }}>{s.icon}</div>
-          <div style={{ fontWeight: 700, fontSize: '1.3rem', color: '#c0392b' }}>{s.value}</div>
-          <div style={{ color: '#888', fontSize: '0.75rem', fontWeight: 600 }}>{s.label}</div>
+        <div key={s.label} className="modern-card" style={{ padding: '16px', textAlign: 'center' }}>
+          <div style={{ fontWeight: 800, fontSize: '1.5rem', color: s.color }}>{s.value}</div>
+          <div style={{ color: '#64748b', fontSize: '0.8rem', fontWeight: 600, marginTop: 2 }}>{s.label}</div>
         </div>
       ))}
     </div>
   );
 }
 
-// ─── Main Page ──────────────────────────────────────────────────────────────
 export default function BloodFinderPage() {
   const [bloodGroup, setBloodGroup] = useState('O+');
   const [radiusKm, setRadiusKm] = useState(100);
@@ -273,7 +307,7 @@ export default function BloodFinderPage() {
   };
 
   const handleSearch = async () => {
-    if (!coords) { setError('Please get your location first.'); return; }
+    if (!coords) { setError('Please select your location or tap Use GPS.'); return; }
     setLoading(true);
     setError('');
     setResults(null);
@@ -294,158 +328,170 @@ export default function BloodFinderPage() {
   const noHospitalsFound = results && results.length === 0;
 
   return (
-    <div style={{ minHeight: '100vh', background: '#fdf2f2', fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
+    <div className="page-wrapper">
+      <Navbar />
 
-      {/* Header */}
-      <div style={{ background: 'linear-gradient(135deg, #c0392b 0%, #96281b 100%)', color: 'white', padding: '28px 32px' }}>
-        <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 800 }}>🩸 Find Blood Near Me</h1>
-        <p style={{ margin: '6px 0 0', opacity: 0.85, fontSize: '0.95rem' }}>
-          Locate hospitals with available blood matching your type — in real time.
-        </p>
-      </div>
-
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: '24px 16px' }}>
+      <main className="content-container" style={{ maxWidth: 960 }}>
+        {/* Title */}
+        <div style={{ marginBottom: 28, textAlign: 'center' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#dc2626', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
+            <span>📍</span> Emergency Geo-Inventory Radar
+          </div>
+          <h1 style={{ fontSize: '2.1rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }}>
+            Find Blood Near You
+          </h1>
+          <p style={{ color: '#64748b', fontSize: '1rem', maxWidth: 560, margin: '6px auto 0' }}>
+            Search 102 Karnataka hospitals and blood banks for immediate blood units within up to 100 km.
+          </p>
+        </div>
 
         {/* Search Controls Card */}
-        <div style={{ background: 'white', borderRadius: 14, padding: '24px', boxShadow: '0 2px 12px rgba(0,0,0,0.08)', marginBottom: 24 }}>
-
+        <div className="modern-card" style={{ padding: '28px', marginBottom: 24 }}>
           {/* Blood Group Selector */}
-          <div style={{ marginBottom: 20 }}>
-            <label style={{ display: 'block', fontWeight: 700, color: '#333', marginBottom: 10, fontSize: '0.9rem' }}>
-              Select Blood Group
-            </label>
+          <div style={{ marginBottom: 22 }}>
+            <label className="form-label" style={{ fontSize: '0.875rem' }}>Select Required Blood Group</label>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {ALL_GROUPS.map(g => (
-                <button key={g} onClick={() => setBloodGroup(g)}
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => setBloodGroup(g)}
                   style={{
-                    padding: '8px 16px', borderRadius: 24, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.9rem',
-                    background: bloodGroup === g ? '#c0392b' : '#fdf2f2',
-                    color: bloodGroup === g ? 'white' : '#c0392b',
-                    boxShadow: bloodGroup === g ? '0 2px 8px rgba(192,57,43,0.4)' : 'none',
-                    transition: 'all 0.15s'
-                  }}>
+                    padding: '8px 18px',
+                    borderRadius: 9999,
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                    fontSize: '0.925rem',
+                    backgroundColor: bloodGroup === g ? '#dc2626' : '#ffffff',
+                    color: bloodGroup === g ? '#ffffff' : '#334155',
+                    border: bloodGroup === g ? '1px solid #dc2626' : '1px solid #cbd5e1',
+                    boxShadow: bloodGroup === g ? '0 2px 6px rgba(220, 38, 38, 0.25)' : 'none',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
                   {g}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Location Row */}
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 20 }}>
-            <div style={{ flex: '0 0 auto' }}>
-              <label style={{ display: 'block', fontWeight: 700, color: '#333', marginBottom: 8, fontSize: '0.9rem' }}>Location</label>
-              <button onClick={getGPS} disabled={gpsLoading}
-                style={{
-                  padding: '10px 20px', background: gpsLoading ? '#ccc' : '#27ae60',
-                  color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, cursor: gpsLoading ? 'default' : 'pointer', fontSize: '0.9rem'
-                }}>
-                {gpsLoading ? '📡 Getting GPS…' : '📡 Use My GPS'}
+          {/* Location row */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, alignItems: 'center', marginBottom: 22 }}>
+            <div>
+              <label className="form-label">Auto-Detect Geolocation</label>
+              <button
+                type="button"
+                onClick={getGPS}
+                disabled={gpsLoading}
+                className="btn btn-secondary"
+                style={{ width: '100%', padding: '10px' }}
+              >
+                {gpsLoading ? '📡 Contacting GPS Satellite…' : '📡 Use Current GPS'}
               </button>
             </div>
 
-            {/* Fallback: OR manual city */}
-            <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ color: '#888', fontWeight: 600, marginTop: 24 }}>OR</span>
-              <div>
-                <label style={{ display: 'block', fontWeight: 700, color: '#333', marginBottom: 8, fontSize: '0.9rem' }}>Select City</label>
-                <select value={fallbackCity} onChange={e => handleFallbackCity(e.target.value)}
-                  style={{ padding: '10px 14px', borderRadius: 8, border: '1.5px solid #ddd', fontSize: '0.9rem', background: 'white' }}>
-                  <option value="">— Choose city —</option>
-                  {CITY_PRESETS.map(c => (
-                    <option key={c.label} value={c.label}>{c.label}</option>
-                  ))}
-                </select>
-              </div>
+            <div>
+              <label className="form-label">Or Select Karnataka District</label>
+              <select
+                className="form-control"
+                value={fallbackCity}
+                onChange={e => handleFallbackCity(e.target.value)}
+              >
+                <option value="">— Choose a Karnataka City —</option>
+                {CITY_PRESETS.map(c => (
+                  <option key={c.label} value={c.label}>{c.label}</option>
+                ))}
+              </select>
             </div>
 
             {coords && (
-              <div style={{ marginTop: 24 }}>
-                <span style={{ background: '#e8f8e8', color: '#27ae60', padding: '8px 12px', borderRadius: 8, fontWeight: 600, fontSize: '0.82rem' }}>
-                  ✓ {fallbackCity || `${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`}
+              <div style={{ alignSelf: 'flex-end', paddingBottom: 6 }}>
+                <span style={{ background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0', padding: '8px 12px', borderRadius: 8, fontWeight: 700, fontSize: '0.825rem' }}>
+                  ✓ Location: {fallbackCity || `${coords.lat.toFixed(3)}, ${coords.lng.toFixed(3)}`}
                 </span>
               </div>
             )}
           </div>
 
           {gpsError && (
-            <div style={{ background: '#fff8e1', color: '#856404', padding: '10px 14px', borderRadius: 8, marginBottom: 16, fontSize: '0.86rem', fontWeight: 600 }}>
-              ⚠️ GPS access denied. Please select a city above, or enable location in your browser.
+            <div style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', padding: '10px 14px', borderRadius: 8, marginBottom: 18, fontSize: '0.85rem' }}>
+              ⚠️ Location permission was denied. Please pick your city from the dropdown above.
             </div>
           )}
 
-          {/* Radius + Search Row */}
-          <div style={{ display: 'flex', gap: 16, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          {/* Search Radius & Action */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 16 }}>
             <div>
-              <label style={{ display: 'block', fontWeight: 700, color: '#333', marginBottom: 8, fontSize: '0.9rem' }}>Search Radius</label>
-              <div style={{ display: 'flex', gap: 6 }}>
+              <label className="form-label">Search Radius</label>
+              <div style={{ display: 'flex', gap: 8 }}>
                 {RADIUS_OPTIONS.map(r => (
-                  <button key={r} onClick={() => setRadiusKm(r)}
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setRadiusKm(r)}
                     style={{
-                      padding: '8px 18px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: '0.88rem',
-                      background: radiusKm === r ? '#c0392b' : '#f0f0f0',
-                      color: radiusKm === r ? 'white' : '#555'
-                    }}>
+                      padding: '8px 18px',
+                      borderRadius: 8,
+                      fontWeight: 700,
+                      fontSize: '0.875rem',
+                      cursor: 'pointer',
+                      backgroundColor: radiusKm === r ? '#dc2626' : '#ffffff',
+                      color: radiusKm === r ? '#ffffff' : '#334155',
+                      border: radiusKm === r ? '1px solid #dc2626' : '1px solid #cbd5e1'
+                    }}
+                  >
                     {r} km
                   </button>
                 ))}
               </div>
             </div>
 
-            <button onClick={handleSearch} disabled={loading || !coords}
-              style={{
-                padding: '12px 32px', background: loading || !coords ? '#e0a0a0' : '#c0392b',
-                color: 'white', border: 'none', borderRadius: 10, fontWeight: 800, fontSize: '1rem',
-                cursor: loading || !coords ? 'default' : 'pointer',
-                boxShadow: loading || !coords ? 'none' : '0 4px 16px rgba(192,57,43,0.4)',
-                marginLeft: 'auto'
-              }}>
-              {loading ? '🔍 Searching…' : '🔍 Search'}
+            <button
+              onClick={handleSearch}
+              disabled={loading || !coords}
+              className="btn btn-primary"
+              style={{ padding: '12px 36px', fontSize: '1rem', fontWeight: 800 }}
+            >
+              {loading ? 'Searching Hospitals…' : '🔍 Find Blood Now'}
             </button>
           </div>
 
           {error && (
-            <div style={{ background: '#fdecea', color: '#c0392b', padding: '10px 14px', borderRadius: 8, marginTop: 14, fontWeight: 600, fontSize: '0.88rem' }}>
+            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', padding: '10px 14px', borderRadius: 8, marginTop: 16, fontWeight: 600, fontSize: '0.875rem' }}>
               ⚠️ {error}
             </div>
           )}
         </div>
 
-        {/* Results */}
+        {/* Search Results */}
         {loading && <Spinner />}
 
         {!loading && searched && results !== null && (
-          <>
-            {/* Escalation Banner */}
+          <div>
             {noStockAnywhere && (
-              <div style={{ background: '#fdecea', border: '2px solid #c0392b', borderRadius: 12, padding: '16px 20px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ fontSize: '1.6rem' }}>🚨</span>
+              <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 12, padding: '18px 20px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 14 }}>
+                <span style={{ fontSize: '2rem' }}>🚨</span>
                 <div>
-                  <div style={{ fontWeight: 700, color: '#c0392b', marginBottom: 4 }}>No blood available nearby</div>
-                  <div style={{ color: '#555', fontSize: '0.9rem' }}>
-                    Contact blood banks directly or register as an emergency request. Try expanding your search radius.
+                  <div style={{ fontWeight: 800, color: '#dc2626', fontSize: '1rem' }}>No Blood Available in Radius</div>
+                  <div style={{ color: '#475569', fontSize: '0.875rem', marginTop: 2 }}>
+                    No exact or compatible units found. Contact hospitals directly using hotlines or expand search to 100km.
                   </div>
                 </div>
               </div>
             )}
 
-            {/* No results */}
             {noHospitalsFound ? (
-              <div style={{ background: 'white', borderRadius: 14, padding: '48px 32px', textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-                <div style={{ fontSize: '3rem', marginBottom: 12 }}>🏥</div>
-                <div style={{ fontWeight: 700, color: '#333', fontSize: '1.1rem', marginBottom: 8 }}>
-                  No hospitals found within {radiusKm}km
-                </div>
-                <div style={{ color: '#888', fontSize: '0.9rem' }}>
-                  Try expanding your search radius or selecting a different location.
-                </div>
+              <div className="modern-card" style={{ padding: '48px 24px', textAlign: 'center', color: '#64748b' }}>
+                <div style={{ fontSize: '3rem', marginBottom: 10 }}>🏥</div>
+                <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '1.15rem' }}>No facilities found in {radiusKm} km</div>
+                <p style={{ fontSize: '0.9rem', marginTop: 4 }}>Try selecting a larger search radius.</p>
               </div>
             ) : (
               <>
                 <SummaryBar results={results} bloodGroup={bloodGroup} />
 
-                <div style={{ fontWeight: 700, color: '#333', marginBottom: 12, fontSize: '0.95rem' }}>
-                  {results.length} hospital{results.length !== 1 ? 's' : ''} found within {radiusKm}km
-                  {' '}— showing closest first
+                <div style={{ fontWeight: 700, color: '#0f172a', marginBottom: 14, fontSize: '0.95rem' }}>
+                  {results.length} hospitals located within {radiusKm} km — sorted by driving proximity:
                 </div>
 
                 {results.map(h => (
@@ -453,9 +499,9 @@ export default function BloodFinderPage() {
                 ))}
               </>
             )}
-          </>
+          </div>
         )}
-      </div>
+      </main>
     </div>
   );
 }

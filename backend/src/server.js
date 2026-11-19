@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
+const cron = require('node-cron');
 require('dotenv').config();
 
 const authRoutes = require('./routes/authRoutes');
@@ -64,11 +65,36 @@ io.on('connection', (socket) => {
   });
 });
 
+
+// -- POST /api/simulation/advance-day — Admin-triggered demo day advance --
+app.post('/api/simulation/advance-day', async (req, res) => {
+  try {
+    const { days = 1 } = req.body;
+    const { runDailyCycle } = require('../simulateDailyCycle');
+    const results = [];
+    for (let i = 0; i < Math.min(days, 30); i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - (days - 1 - i));
+      const stats = await runDailyCycle(d, { verbose: false });
+      results.push({ day: i + 1, ...stats });
+    }
+    res.json({ success: true, daysAdvanced: days, results });
+  } catch (err) {
+    console.error('advance-day error:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
 // MongoDB connection
 mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/bloodplatform')
   .then(() => {
     console.log('MongoDB connected successfully');
-    const PORT = process.env.PORT || 5000;
+    // -- Daily simulation cron (midnight IST = 18:30 UTC) -----------------
+    const { runDailyCycle } = require('../simulateDailyCycle');
+    cron.schedule('30 18 * * *', async () => {
+      console.log('[CRON] Running daily blood cycle simulation...');
+      try { await runDailyCycle(new Date(), { verbose: false }); }
+      catch (e) { console.error('[CRON] Simulation error:', e.message); }
+    });    const PORT = process.env.PORT || 5000;
     server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
   })
   .catch(err => {

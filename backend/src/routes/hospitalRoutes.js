@@ -251,6 +251,141 @@ router.get('/nearby-blood', async (req, res) => {
   }
 });
 
+// ── GET /api/hospitals/network-overview ───────────────────────────────
+// Protected: hospital role only. Returns all peer hospitals within radius
+// with live inventory summary, distance, ETA, and contact info.
+router.get('/network-overview', protect, hospitalOnly, async (req, res) => {
+  try {
+    const radiusKm = parseFloat(req.query.radiusKm) || 100;
+    const bloodGroupFilter = req.query.bloodGroup; // optional filter
+    const searchQuery = req.query.search; // optional name/city search
+
+    // Find the requesting hospital's own record
+    const ownHospital = await Hospital.findOne({ user: req.user.id });
+    if (!ownHospital) return res.status(404).json({ message: 'Hospital profile not found' });
+
+    const [ownLng, ownLat] = ownHospital.location.coordinates;
+
+    // Build filter for peer hospitals
+    const geoFilter = {
+      location: {
+        $nearSphere: {
+          $geometry: { type: 'Point', coordinates: [ownLng, ownLat] },
+          $maxDistance: radiusKm * 1000
+        }
+      },
+      _id: { $ne: ownHospital._id }, // Exclude self
+      'location.coordinates.0': { $ne: 0 },
+      'location.coordinates.1': { $ne: 0 }
+    };
+
+    if (searchQuery) {
+      geoFilter.$or = [
+        { hospitalName: new RegExp(searchQuery, 'i') },
+        { city: new RegExp(searchQuery, 'i') }
+      ];
+    }
+
+    const peers = await Hospital.find(geoFilter)
+      .select('hospitalName address city phone operatingHours facilityType location contactPerson')
+      .limit(80);
+
+    if (peers.length === 0) return res.json({ ownHospital: { _id: ownHospital._id, hospitalName: ownHospital.hospitalName, location: ownHospital.location }, peers: [] });
+
+    const peerIds = peers.map(h => h._id);
+    const now = new Date();
+    const ALL_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+
+    // Aggregate inventory for all peers
+    const inventoryAgg = await BloodInventory.aggregate([
+      {
+        $match: {
+          hospital: { $in: peerIds },
+          status: 'safe',
+          expiryDate: { $gt: now }
+        }
+      },
+      {
+        $group: {
+          _id: { hospital: '$hospital', bloodGroup: '$bloodGroup' },
+          totalUnits: { $sum: '$units' }
+        }
+      }
+    ]);
+
+    // Build invMap: hospitalId -> { bloodGroup -> units }
+    const invMap = {};
+    inventoryAgg.forEach(item => {
+      const hid = item._id.hospital.toString();
+      if (!invMap[hid]) invMap[hid] = {};
+      invMap[hid][item._id.bloodGroup] = item.totalUnits;
+    });
+
+    // Haversine distance
+    function haversineKm(lat1, lng1, lat2, lng2) {
+      const R = 6371;
+      const dLat = ((lat2 - lat1) * Math.PI) / 180;
+      const dLng = ((lng2 - lng1) * Math.PI) / 180;
+      const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+
+    // Build result
+    let results = peers.map(h => {
+      const hid = h._id.toString();
+      const groupMap = invMap[hid] || {};
+      const inventoryByGroup = {};
+      ALL_GROUPS.forEach(g => { inventoryByGroup[g] = groupMap[g] || 0; });
+
+      const hLng = h.location.coordinates[0];
+      const hLat = h.location.coordinates[1];
+      const distanceKm = parseFloat(haversineKm(ownLat, ownLng, hLat, hLng).toFixed(1));
+      const etaMinutes = Math.round((distanceKm / 40) * 60); // 40 km/h ambulance
+
+      // Per-group stock status
+      const groupStatus = {};
+      ALL_GROUPS.forEach(g => {
+        const units = inventoryByGroup[g];
+        if (units > 10) groupStatus[g] = 'surplus';
+        else if (units >= 3) groupStatus[g] = 'adequate';
+        else groupStatus[g] = 'critical';
+      });
+
+      const totalUnits = ALL_GROUPS.reduce((s, g) => s + inventoryByGroup[g], 0);
+
+      return {
+        _id: h._id,
+        hospitalName: h.hospitalName,
+        address: h.address,
+        city: h.city,
+        phone: h.phone,
+        operatingHours: h.operatingHours,
+        facilityType: h.facilityType,
+        contactPerson: h.contactPerson,
+        location: h.location,
+        distanceKm,
+        etaMinutes,
+        inventoryByGroup,
+        groupStatus,
+        totalUnits
+      };
+    });
+
+    // Apply blood group filter — only show hospitals that have that group if filter is set
+    if (bloodGroupFilter && ALL_GROUPS.includes(bloodGroupFilter)) {
+      results = results.filter(h => h.inventoryByGroup[bloodGroupFilter] > 0);
+    }
+
+    // Sort by distance
+    results.sort((a, b) => a.distanceKm - b.distanceKm);
+
+    res.json({ ownHospital: { _id: ownHospital._id, hospitalName: ownHospital.hospitalName, location: ownHospital.location }, peers: results });
+  } catch (err) {
+    console.error('network-overview error:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // ── GET /api/hospitals/:id/inventory ─────────────────────────────────
 // Public: full inventory breakdown for a single hospital
 router.get('/:id/inventory', async (req, res) => {

@@ -1,25 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { useAuth } from '../context/AuthContext';
 import {
   Chart as ChartJS, ArcElement, Tooltip, Legend,
   CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title
 } from 'chart.js';
 import { Pie, Bar, Line } from 'react-chartjs-2';
+import Navbar from '../components/Navbar';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title);
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-
 const TABS = ['Overview', 'Donors', 'Hospitals', 'Requests', 'Blood Safety'];
 
-const URGENCY_COLORS = { critical: '#e74c3c', high: '#e67e22', medium: '#f39c12', low: '#27ae60' };
-const BG_COLORS = ['#c0392b','#e74c3c','#e67e22','#f39c12','#27ae60','#2980b9','#8e44ad','#16a085'];
+const URGENCY_COLORS = { critical: '#dc2626', high: '#ea580c', medium: '#d97706', low: '#059669' };
+const BG_COLORS = ['#dc2626','#ef4444','#f97316','#f59e0b','#10b981','#3b82f6','#8b5cf6','#06b6d4'];
 
 export default function AdminPanel() {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
   const [tab, setTab] = useState('Overview');
   const [stats, setStats] = useState(null);
   const [donors, setDonors] = useState([]);
@@ -66,7 +62,6 @@ export default function AdminPanel() {
     } catch (e) {}
   };
 
-  // ── Charts data ──────────────────────────────────────────────────
   const bloodGroupPieData = {
     labels: stats?.bloodGroupStats?.map(b => b._id) || [],
     datasets: [{
@@ -82,10 +77,11 @@ export default function AdminPanel() {
     datasets: [{
       label: 'Blood Requests',
       data: stats?.requestTrend?.map(r => r.count) || [],
-      borderColor: '#c0392b',
-      backgroundColor: 'rgba(192,57,43,0.1)',
+      borderColor: '#dc2626',
+      backgroundColor: 'rgba(220, 38, 38, 0.08)',
       fill: true,
-      tension: 0.4
+      tension: 0.4,
+      pointBackgroundColor: '#dc2626'
     }]
   };
 
@@ -94,7 +90,8 @@ export default function AdminPanel() {
     datasets: [{
       label: 'Requests by Urgency',
       data: stats?.urgencyBreakdown?.map(u => u.count) || [],
-      backgroundColor: stats?.urgencyBreakdown?.map(u => URGENCY_COLORS[u._id] || '#888') || []
+      backgroundColor: stats?.urgencyBreakdown?.map(u => URGENCY_COLORS[u._id] || '#64748b') || [],
+      borderRadius: 6
     }]
   };
 
@@ -103,345 +100,375 @@ export default function AdminPanel() {
     d.bloodGroup?.includes(search) ||
     d.area?.toLowerCase().includes(search.toLowerCase())
   );
+
   const filteredHospitals = hospitals.filter(h =>
     h.hospitalName?.toLowerCase().includes(search.toLowerCase()) ||
     h.city?.toLowerCase().includes(search.toLowerCase())
   );
 
-  if (loading) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8f9fa' }}>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: '3rem' }}>🩸</div>
-        <div style={{ marginTop: 12, color: '#888' }}>Loading Admin Panel...</div>
-      </div>
-    </div>
-  );
-
   return (
-    <div style={{ minHeight: '100vh', background: '#f0f2f5' }}>
-      {/* Header */}
-      <div style={{ background: '#1a1a2e', color: 'white', padding: '16px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: '1.8rem' }}>🩸</span>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>Blood Platform — Admin Panel</div>
-            <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>Logged in as {user?.name}</div>
+    <div className="page-wrapper">
+      <Navbar />
+
+      <main className="content-container" style={{ maxWidth: 1320 }}>
+        {/* Title */}
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#dc2626', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
+            <span>🛡️</span> Administrative Governance
           </div>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }}>
+            System Administration & Quality Oversight
+          </h1>
+          <p style={{ color: '#64748b', fontSize: '0.9rem', marginTop: 4 }}>
+            Manage regional hospital credentials, volunteer rosters, requests dispatch & safety compliance
+          </p>
         </div>
-        <button onClick={() => { logout(); navigate('/'); }}
-          style={{ background: 'rgba(255,255,255,0.15)', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 6, cursor: 'pointer' }}>
-          Logout
-        </button>
-      </div>
 
-      {/* Tabs */}
-      <div style={{ background: 'white', borderBottom: '2px solid #eee', padding: '0 32px', display: 'flex', gap: 0 }}>
-        {TABS.map(t => (
-          <button key={t} onClick={() => setTab(t)}
-            style={{ padding: '14px 24px', border: 'none', background: 'none', fontWeight: 600, fontSize: '0.95rem', cursor: 'pointer', color: tab === t ? '#c0392b' : '#888', borderBottom: tab === t ? '3px solid #c0392b' : '3px solid transparent' }}>
-            {t}
-          </button>
-        ))}
-      </div>
+        {msg && (
+          <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', padding: '12px 16px', borderRadius: 10, marginBottom: 20, fontWeight: 600 }}>
+            ⚠️ {msg}
+          </div>
+        )}
 
-      {msg && <div style={{ background: '#fdecea', color: '#c0392b', padding: 12, margin: '16px 32px', borderRadius: 8 }}>{msg}</div>}
+        {/* Tab Pills */}
+        <div style={{ display: 'flex', gap: 6, marginBottom: 24, borderBottom: '1px solid #e2e8f0', paddingBottom: 12, overflowX: 'auto' }}>
+          {TABS.map(t => {
+            const isActive = tab === t;
+            return (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: 8,
+                  fontWeight: isActive ? 700 : 600,
+                  fontSize: '0.9rem',
+                  cursor: 'pointer',
+                  backgroundColor: isActive ? '#fef2f2' : 'transparent',
+                  color: isActive ? '#dc2626' : '#475569',
+                  border: isActive ? '1px solid #fecaca' : '1px solid transparent',
+                  transition: 'all 0.15s ease',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {t}
+              </button>
+            );
+          })}
+        </div>
 
-      <div style={{ padding: '32px', maxWidth: 1300, margin: '0 auto' }}>
-
-        {/* ── OVERVIEW TAB ─────────────────────────────────────────── */}
-        {tab === 'Overview' && stats && (
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '60px 0', color: '#64748b' }}>
+            <div style={{ width: 44, height: 44, border: '4px solid #fecaca', borderTopColor: '#dc2626', borderRadius: '50%', margin: '0 auto 14px', animation: 'spin 0.8s linear infinite' }} />
+            <div>Loading administrative telemetry...</div>
+          </div>
+        ) : (
           <>
-            {/* Stat Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, marginBottom: 32 }}>
-              {[
-                { label: 'Total Donors', value: stats.totalDonors, icon: '🧑', color: '#c0392b' },
-                { label: 'Active Donors', value: stats.activeDonors, icon: '✅', color: '#27ae60' },
-                { label: 'Hospitals', value: stats.totalHospitals, icon: '🏥', color: '#2980b9' },
-                { label: 'Total Requests', value: stats.totalRequests, icon: '🩸', color: '#e67e22' },
-                { label: 'Fulfilled', value: stats.fulfilledRequests, icon: '✔️', color: '#27ae60' },
-                { label: 'Fulfillment Rate', value: `${stats.fulfillmentRate}%`, icon: '📊', color: '#8e44ad' },
-                { label: 'Avg Response', value: `${stats.avgResponseTimeHrs}h`, icon: '⏱️', color: '#16a085' },
-                { label: 'Blood Units', value: stats.totalInventory, icon: '💉', color: '#c0392b' },
-              ].map(s => (
-                <div key={s.label} style={{ background: 'white', borderRadius: 12, padding: '20px 16px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', borderTop: `4px solid ${s.color}`, textAlign: 'center' }}>
-                  <div style={{ fontSize: '1.6rem' }}>{s.icon}</div>
-                  <div style={{ fontSize: '1.8rem', fontWeight: 700, color: s.color, margin: '6px 0' }}>{s.value}</div>
-                  <div style={{ color: '#888', fontSize: '0.8rem' }}>{s.label}</div>
+            {/* ── OVERVIEW TAB ─────────────────────────────────────────── */}
+            {tab === 'Overview' && stats && (
+              <div>
+                {/* Stat Cards */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 28 }}>
+                  {[
+                    { label: 'Registered Donors', value: stats.totalDonors, color: '#dc2626', icon: '👤' },
+                    { label: 'Active Ready Donors', value: stats.activeDonors, color: '#059669', icon: '✓' },
+                    { label: 'Accredited Hospitals', value: stats.totalHospitals, color: '#2563eb', icon: '🏥' },
+                    { label: 'Emergency Requests', value: stats.totalRequests, color: '#ea580c', icon: '🚨' },
+                    { label: 'Fulfilled Emergencies', value: stats.fulfilledRequests, color: '#059669', icon: '✔️' },
+                    { label: 'Platform Fulfillment', value: `${stats.fulfillmentRate}%`, color: '#7c3aed', icon: '📊' },
+                    { label: 'Avg Dispatch Time', value: `${stats.avgResponseTimeHrs}h`, color: '#0891b2', icon: '⏱️' },
+                    { label: 'Safe Blood Reserve', value: stats.totalInventory, color: '#dc2626', icon: '🩸' },
+                  ].map(s => (
+                    <div key={s.label} className="modern-card" style={{ padding: '16px 18px' }}>
+                      <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>{s.label}</div>
+                      <div style={{ fontSize: '1.75rem', fontWeight: 800, color: s.color, marginTop: 4 }}>{s.value}</div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
 
-            {/* Charts Row */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 24, marginBottom: 24 }}>
-              <div style={{ background: 'white', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                <h3 style={{ marginBottom: 16, fontSize: '1rem' }}>🩸 Donors by Blood Group</h3>
-                <Pie data={bloodGroupPieData} options={{ plugins: { legend: { position: 'bottom' } } }} />
-              </div>
-              <div style={{ background: 'white', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                <h3 style={{ marginBottom: 16, fontSize: '1rem' }}>⚡ Requests by Urgency</h3>
-                <Bar data={urgencyBarData} options={{ plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }} />
-              </div>
-              <div style={{ background: 'white', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                <h3 style={{ marginBottom: 16, fontSize: '1rem' }}>📈 Request Trend (30 days)</h3>
-                {requestTrendData.labels.length > 0
-                  ? <Line data={requestTrendData} options={{ plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }} />
-                  : <p style={{ color: '#aaa', textAlign: 'center', marginTop: 40 }}>No data yet</p>
-                }
-              </div>
-            </div>
-          </>
-        )}
+                {/* Charts Row */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
+                  <div className="modern-card" style={{ padding: '24px' }}>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', marginBottom: 16 }}>
+                      🩸 Donors by Blood Group
+                    </h3>
+                    <div style={{ height: 240, position: 'relative' }}>
+                      <Pie data={bloodGroupPieData} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 11, weight: 600 } } } } }} />
+                    </div>
+                  </div>
 
-        {/* ── DONORS TAB ───────────────────────────────────────────── */}
-        {tab === 'Donors' && (
-          <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h2 style={{ color: '#333' }}>All Donors ({donors.length})</h2>
-              <input value={search} onChange={e => setSearch(e.target.value)}
-                placeholder="Search by name, blood group, area..."
-                style={{ padding: '10px 16px', borderRadius: 8, border: '1.5px solid #ddd', width: 280, fontSize: '0.9rem' }} />
-            </div>
-            <div style={{ background: 'white', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', overflow: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ background: '#f8f9fa', borderBottom: '2px solid #eee' }}>
-                    {['Name', 'Email', 'Blood Group', 'Age', 'Area', 'State', 'Donations', 'Status', 'Action'].map(h => (
-                      <th key={h} style={{ padding: '12px 16px', textAlign: 'left', color: '#666', fontWeight: 600, fontSize: '0.85rem' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredDonors.map(d => (
-                    <tr key={d._id} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                      <td style={{ padding: '12px 16px', fontWeight: 600 }}>{d.user?.name || '—'}</td>
-                      <td style={{ padding: '12px 16px', color: '#666', fontSize: '0.85rem' }}>{d.user?.email || '—'}</td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <span style={{ background: '#fff0f0', color: '#c0392b', padding: '2px 8px', borderRadius: 4, fontWeight: 700 }}>{d.bloodGroup}</span>
-                      </td>
-                      <td style={{ padding: '12px 16px', color: '#666' }}>{d.age}</td>
-                      <td style={{ padding: '12px 16px', color: '#666', fontSize: '0.85rem' }}>{d.area || '—'}</td>
-                      <td style={{ padding: '12px 16px', color: '#666', fontSize: '0.85rem' }}>{d.state || '—'}</td>
-                      <td style={{ padding: '12px 16px', textAlign: 'center' }}>{d.totalDonations}</td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <span style={{ background: d.isAvailable ? '#e8f8e8' : '#fdecea', color: d.isAvailable ? '#27ae60' : '#c0392b', padding: '3px 10px', borderRadius: 12, fontSize: '0.8rem', fontWeight: 600 }}>
-                          {d.isAvailable ? 'Available' : 'Unavailable'}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <button onClick={() => toggleDonor(d._id)}
-                          style={{ padding: '5px 12px', background: '#f0f0f0', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
-                          Toggle
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {filteredDonors.length === 0 && <p style={{ textAlign: 'center', padding: 40, color: '#aaa' }}>No donors found</p>}
-            </div>
-          </>
-        )}
+                  <div className="modern-card" style={{ padding: '24px' }}>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', marginBottom: 16 }}>
+                      ⚡ Requests by Urgency Level
+                    </h3>
+                    <div style={{ height: 240, position: 'relative' }}>
+                      <Bar data={urgencyBarData} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#f1f5f9' } }, x: { grid: { display: false } } } }} />
+                    </div>
+                  </div>
 
-        {/* ── HOSPITALS TAB ────────────────────────────────────────── */}
-        {tab === 'Hospitals' && (
-          <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h2 style={{ color: '#333' }}>All Hospitals ({hospitals.length})</h2>
-              <input value={search} onChange={e => setSearch(e.target.value)}
-                placeholder="Search by hospital name, city..."
-                style={{ padding: '10px 16px', borderRadius: 8, border: '1.5px solid #ddd', width: 280, fontSize: '0.9rem' }} />
-            </div>
-            <div style={{ background: 'white', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', overflow: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ background: '#f8f9fa', borderBottom: '2px solid #eee' }}>
-                    {['Hospital Name', 'Reg. No', 'City', 'Contact Person', 'Phone', 'Email', 'Registered On'].map(h => (
-                      <th key={h} style={{ padding: '12px 16px', textAlign: 'left', color: '#666', fontWeight: 600, fontSize: '0.85rem' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredHospitals.map(h => (
-                    <tr key={h._id} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                      <td style={{ padding: '12px 16px', fontWeight: 600, color: '#c0392b' }}>{h.hospitalName}</td>
-                      <td style={{ padding: '12px 16px', color: '#666', fontSize: '0.85rem', fontFamily: 'monospace' }}>{h.registrationNumber}</td>
-                      <td style={{ padding: '12px 16px', color: '#666' }}>{h.city || '—'}</td>
-                      <td style={{ padding: '12px 16px', color: '#666' }}>{h.contactPerson || '—'}</td>
-                      <td style={{ padding: '12px 16px', color: '#666', fontSize: '0.85rem' }}>{h.user?.phone || h.phone || '—'}</td>
-                      <td style={{ padding: '12px 16px', color: '#666', fontSize: '0.85rem' }}>{h.user?.email || '—'}</td>
-                      <td style={{ padding: '12px 16px', color: '#aaa', fontSize: '0.8rem' }}>{new Date(h.createdAt).toLocaleDateString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {filteredHospitals.length === 0 && <p style={{ textAlign: 'center', padding: 40, color: '#aaa' }}>No hospitals found</p>}
-            </div>
-          </>
-        )}
-
-        {/* ── REQUESTS TAB ─────────────────────────────────────────── */}
-        {tab === 'Requests' && (
-          <>
-            <h2 style={{ color: '#333', marginBottom: 20 }}>All Blood Requests ({requests.length})</h2>
-            <div style={{ background: 'white', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', overflow: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ background: '#f8f9fa', borderBottom: '2px solid #eee' }}>
-                    {['Hospital', 'Blood Group', 'Units', 'Urgency', 'AI Score', 'Status', 'Date'].map(h => (
-                      <th key={h} style={{ padding: '12px 16px', textAlign: 'left', color: '#666', fontWeight: 600, fontSize: '0.85rem' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {requests.map(r => (
-                    <tr key={r._id} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                      <td style={{ padding: '12px 16px', fontWeight: 600 }}>{r.hospital?.hospitalName || '—'}</td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <span style={{ background: '#fff0f0', color: '#c0392b', padding: '2px 8px', borderRadius: 4, fontWeight: 700 }}>{r.bloodGroup}</span>
-                      </td>
-                      <td style={{ padding: '12px 16px' }}>{r.unitsFulfilled}/{r.unitsRequired}</td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <span style={{ background: URGENCY_COLORS[r.urgencyLevel] + '22', color: URGENCY_COLORS[r.urgencyLevel], padding: '2px 8px', borderRadius: 4, fontWeight: 600, fontSize: '0.85rem' }}>
-                          {r.urgencyLevel}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px 16px', color: '#888' }}>{(r.aiUrgencyScore * 100).toFixed(0)}%</td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <span style={{ background: r.status === 'fulfilled' ? '#e8f8e8' : r.status === 'open' ? '#fff0f0' : '#fff9e6', color: r.status === 'fulfilled' ? '#27ae60' : r.status === 'open' ? '#c0392b' : '#e67e22', padding: '3px 10px', borderRadius: 12, fontSize: '0.8rem', fontWeight: 600 }}>
-                          {r.status.replace('_', ' ')}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px 16px', color: '#aaa', fontSize: '0.8rem' }}>{new Date(r.createdAt).toLocaleString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {requests.length === 0 && <p style={{ textAlign: 'center', padding: 40, color: '#aaa' }}>No requests found</p>}
-            </div>
-          </>
-        )}
-
-        {/* ── BLOOD SAFETY TAB ─────────────────────────────────────── */}
-        {tab === 'Blood Safety' && bloodSafetyStats && (
-          <>
-            {/* Safety Stats Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, marginBottom: 32 }}>
-              {[
-                { label: 'Total Blood Units', value: bloodSafetyStats.totalUnits, icon: '🩸', color: '#c0392b' },
-                { label: 'Available (Safe)', value: bloodSafetyStats.availableUnits, icon: '✅', color: '#27ae60' },
-                { label: 'In Quarantine', value: bloodSafetyStats.quarantineUnits, icon: '⏳', color: '#f39c12' },
-                { label: 'Rejected', value: bloodSafetyStats.rejectedUnits, icon: '❌', color: '#e74c3c' },
-                { label: 'Expired', value: bloodSafetyStats.expiredUnits, icon: '⚠️', color: '#95a5a6' },
-                { label: 'Expiring Soon', value: bloodSafetyStats.expiringSoon, icon: '⏰', color: '#e67e22' },
-                { label: 'Verified Safe', value: bloodSafetyStats.verifiedSafeUnits, icon: '🛡️', color: '#27ae60' },
-                { label: 'Safety Pass Rate', value: `${bloodSafetyStats.safetyPassRate}%`, icon: '📊', color: '#2980b9' },
-              ].map(s => (
-                <div key={s.label} style={{ background: 'white', borderRadius: 12, padding: '20px 16px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', borderTop: `4px solid ${s.color}`, textAlign: 'center' }}>
-                  <div style={{ fontSize: '1.6rem' }}>{s.icon}</div>
-                  <div style={{ fontSize: '1.8rem', fontWeight: 700, color: s.color, margin: '6px 0' }}>{s.value}</div>
-                  <div style={{ color: '#888', fontSize: '0.8rem' }}>{s.label}</div>
+                  <div className="modern-card" style={{ padding: '24px' }}>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', marginBottom: 16 }}>
+                      📈 Emergency Request Trend (30 Days)
+                    </h3>
+                    <div style={{ height: 240, position: 'relative' }}>
+                      {requestTrendData.labels.length > 0 ? (
+                        <Line data={requestTrendData} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#f1f5f9' } }, x: { grid: { display: false } } } }} />
+                      ) : (
+                        <div style={{ textAlign: 'center', color: '#94a3b8', paddingTop: 80 }}>No trend logged yet</div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
 
-            {/* Charts Row */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 24, marginBottom: 24 }}>
-              <div style={{ background: 'white', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                <h3 style={{ marginBottom: 16, fontSize: '1rem' }}>📦 Units by Status</h3>
-                <Pie 
-                  data={{
-                    labels: bloodSafetyStats.statusBreakdown?.map(s => s._id) || [],
-                    datasets: [{
-                      data: bloodSafetyStats.statusBreakdown?.map(s => s.count) || [],
-                      backgroundColor: ['#27ae60', '#f39c12', '#e74c3c', '#95a5a6', '#3498db', '#9b59b6'],
-                      borderWidth: 2,
-                      borderColor: '#fff'
-                    }]
-                  }}
-                  options={{ plugins: { legend: { position: 'bottom' } } }}
-                />
-              </div>
-              <div style={{ background: 'white', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                <h3 style={{ marginBottom: 16, fontSize: '1rem' }}>🩸 Units by Blood Group</h3>
-                <Bar 
-                  data={{
-                    labels: bloodSafetyStats.bloodGroupBreakdown?.map(b => b._id) || [],
-                    datasets: [{
-                      label: 'Units',
-                      data: bloodSafetyStats.bloodGroupBreakdown?.map(b => b.count) || [],
-                      backgroundColor: '#c0392b'
-                    }]
-                  }}
-                  options={{ plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }}
-                />
-              </div>
-              <div style={{ background: 'white', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                <h3 style={{ marginBottom: 16, fontSize: '1rem' }}>💉 Units by Component</h3>
-                <Pie 
-                  data={{
-                    labels: bloodSafetyStats.componentBreakdown?.map(c => c._id.replace('_', ' ')) || [],
-                    datasets: [{
-                      data: bloodSafetyStats.componentBreakdown?.map(c => c.count) || [],
-                      backgroundColor: BG_COLORS,
-                      borderWidth: 2,
-                      borderColor: '#fff'
-                    }]
-                  }}
-                  options={{ plugins: { legend: { position: 'bottom' } } }}
-                />
-              </div>
-            </div>
+            {/* ── DONORS TAB ───────────────────────────────────────────── */}
+            {tab === 'Donors' && (
+              <div className="modern-card" style={{ padding: '24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, flexWrap: 'wrap', gap: 12 }}>
+                  <div>
+                    <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f172a' }}>
+                      Volunteer Donors Directory ({donors.length})
+                    </h2>
+                    <p style={{ color: '#64748b', fontSize: '0.825rem' }}>Active donors, blood groups, and status toggles</p>
+                  </div>
+                  <input
+                    className="form-control"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder="Search name, blood group, area..."
+                    style={{ maxWidth: 300 }}
+                  />
+                </div>
 
-            {/* Recent Blood Units Table */}
-            <h3 style={{ marginBottom: 16, color: '#333' }}>Recent Blood Units (Latest 100)</h3>
-            <div style={{ background: 'white', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', overflow: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ background: '#f8f9fa', borderBottom: '2px solid #eee' }}>
-                    {['Unit ID', 'Blood Group', 'Component', 'Status', 'Verified Safe', 'Expiry Date', 'Hospital', 'Created'].map(h => (
-                      <th key={h} style={{ padding: '12px 16px', textAlign: 'left', color: '#666', fontWeight: 600, fontSize: '0.85rem' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {bloodUnits.map(u => {
-                    const daysUntilExpiry = Math.floor((new Date(u.expiryDate) - new Date()) / (1000 * 60 * 60 * 24));
-                    const isExpiringSoon = daysUntilExpiry <= 7 && daysUntilExpiry >= 0;
-                    return (
-                      <tr key={u._id} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                        <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontSize: '0.85rem', fontWeight: 600 }}>{u.unitId}</td>
-                        <td style={{ padding: '12px 16px' }}>
-                          <span style={{ background: '#fff0f0', color: '#c0392b', padding: '2px 8px', borderRadius: 4, fontWeight: 700 }}>{u.bloodGroup}</span>
-                        </td>
-                        <td style={{ padding: '12px 16px', fontSize: '0.85rem' }}>{u.componentType?.replace('_', ' ')}</td>
-                        <td style={{ padding: '12px 16px' }}>
-                          <span style={{ 
-                            background: u.status === 'available' ? '#e8f8e8' : u.status === 'quarantine' ? '#fff9e6' : u.status === 'rejected' ? '#fdecea' : '#f0f0f0',
-                            color: u.status === 'available' ? '#27ae60' : u.status === 'quarantine' ? '#e67e22' : u.status === 'rejected' ? '#e74c3c' : '#888',
-                            padding: '3px 10px', borderRadius: 12, fontSize: '0.8rem', fontWeight: 600 
-                          }}>
-                            {u.status}
-                          </span>
-                        </td>
-                        <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                          {u.verifiedSafe ? <span style={{ color: '#27ae60', fontSize: '1.2rem' }}>✅</span> : <span style={{ color: '#e74c3c', fontSize: '1.2rem' }}>❌</span>}
-                        </td>
-                        <td style={{ padding: '12px 16px', fontSize: '0.85rem', color: isExpiringSoon ? '#e67e22' : '#666', fontWeight: isExpiringSoon ? 600 : 400 }}>
-                          {new Date(u.expiryDate).toLocaleDateString()}
-                          {isExpiringSoon && <span style={{ marginLeft: 6 }}>⚠️ {daysUntilExpiry}d</span>}
-                        </td>
-                        <td style={{ padding: '12px 16px', fontSize: '0.85rem', color: '#666' }}>{u.hospital?.hospitalName || '—'}</td>
-                        <td style={{ padding: '12px 16px', fontSize: '0.8rem', color: '#aaa' }}>{new Date(u.createdAt).toLocaleDateString()}</td>
+                <div className="table-responsive">
+                  <table className="table-modern">
+                    <thead>
+                      <tr>
+                        <th>Donor Name</th>
+                        <th>Email</th>
+                        <th>Blood Group</th>
+                        <th>Age</th>
+                        <th>District / Area</th>
+                        <th>Donations</th>
+                        <th>Status</th>
+                        <th>Action</th>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-              {bloodUnits.length === 0 && <p style={{ textAlign: 'center', padding: 40, color: '#aaa' }}>No blood units found</p>}
-            </div>
+                    </thead>
+                    <tbody>
+                      {filteredDonors.map(d => (
+                        <tr key={d._id}>
+                          <td style={{ fontWeight: 700, color: '#0f172a' }}>{d.user?.name || '—'}</td>
+                          <td style={{ color: '#475569', fontSize: '0.85rem' }}>{d.user?.email || '—'}</td>
+                          <td>
+                            <span style={{ fontWeight: 800, color: '#dc2626' }}>{d.bloodGroup}</span>
+                          </td>
+                          <td style={{ color: '#475569' }}>{d.age}</td>
+                          <td style={{ color: '#475569', fontSize: '0.85rem' }}>{d.area || d.hub || '—'}</td>
+                          <td style={{ fontWeight: 600, color: '#0f172a' }}>{d.totalDonations}</td>
+                          <td>
+                            <span className={`badge ${d.isAvailable ? 'badge-success' : 'badge-neutral'}`}>
+                              {d.isAvailable ? 'Available' : 'Paused'}
+                            </span>
+                          </td>
+                          <td>
+                            <button
+                              onClick={() => toggleDonor(d._id)}
+                              className="btn btn-secondary"
+                              style={{ padding: '4px 10px', fontSize: '0.75rem' }}
+                            >
+                              Toggle
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {filteredDonors.length === 0 && <p style={{ textAlign: 'center', padding: 36, color: '#94a3b8' }}>No donors matching filter</p>}
+                </div>
+              </div>
+            )}
+
+            {/* ── HOSPITALS TAB ────────────────────────────────────────── */}
+            {tab === 'Hospitals' && (
+              <div className="modern-card" style={{ padding: '24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, flexWrap: 'wrap', gap: 12 }}>
+                  <div>
+                    <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f172a' }}>
+                      Registered Hospitals & Blood Banks ({hospitals.length})
+                    </h2>
+                    <p style={{ color: '#64748b', fontSize: '0.825rem' }}>Verified facilities across Karnataka districts</p>
+                  </div>
+                  <input
+                    className="form-control"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder="Search hospital name, city..."
+                    style={{ maxWidth: 300 }}
+                  />
+                </div>
+
+                <div className="table-responsive">
+                  <table className="table-modern">
+                    <thead>
+                      <tr>
+                        <th>Hospital Name</th>
+                        <th>Reg. License</th>
+                        <th>City / District</th>
+                        <th>Designated Contact</th>
+                        <th>Phone</th>
+                        <th>Email</th>
+                        <th>Created</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredHospitals.map(h => (
+                        <tr key={h._id}>
+                          <td style={{ fontWeight: 700, color: '#dc2626' }}>{h.hospitalName}</td>
+                          <td style={{ color: '#64748b', fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}>{h.registrationNumber}</td>
+                          <td style={{ color: '#475569' }}>{h.city || '—'}</td>
+                          <td style={{ color: '#475569', fontSize: '0.85rem' }}>{h.contactPerson || '—'}</td>
+                          <td style={{ color: '#475569', fontSize: '0.85rem' }}>{h.user?.phone || h.phone || '—'}</td>
+                          <td style={{ color: '#475569', fontSize: '0.85rem' }}>{h.user?.email || '—'}</td>
+                          <td style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{new Date(h.createdAt).toLocaleDateString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {filteredHospitals.length === 0 && <p style={{ textAlign: 'center', padding: 36, color: '#94a3b8' }}>No hospitals matching filter</p>}
+                </div>
+              </div>
+            )}
+
+            {/* ── REQUESTS TAB ─────────────────────────────────────────── */}
+            {tab === 'Requests' && (
+              <div className="modern-card" style={{ padding: '24px' }}>
+                <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f172a', marginBottom: 18 }}>
+                  System-Wide Blood Requests ({requests.length})
+                </h2>
+
+                <div className="table-responsive">
+                  <table className="table-modern">
+                    <thead>
+                      <tr>
+                        <th>Hospital</th>
+                        <th>Blood Group</th>
+                        <th>Fulfillment</th>
+                        <th>Urgency</th>
+                        <th>AI Score</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {requests.map(r => (
+                        <tr key={r._id}>
+                          <td style={{ fontWeight: 700, color: '#0f172a' }}>{r.hospital?.hospitalName || '—'}</td>
+                          <td>
+                            <span style={{ fontWeight: 800, color: '#dc2626' }}>{r.bloodGroup}</span>
+                          </td>
+                          <td style={{ fontWeight: 600 }}>{r.unitsFulfilled} / {r.unitsRequired}</td>
+                          <td>
+                            <span style={{
+                              padding: '2px 8px',
+                              borderRadius: 9999,
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              color: URGENCY_COLORS[r.urgencyLevel] || '#64748b',
+                              background: '#f8fafc',
+                              border: `1px solid ${URGENCY_COLORS[r.urgencyLevel] || '#e2e8f0'}`
+                            }}>
+                              {r.urgencyLevel?.toUpperCase()}
+                            </span>
+                          </td>
+                          <td style={{ color: '#64748b' }}>{(r.aiUrgencyScore * 100).toFixed(0)}%</td>
+                          <td>
+                            <span className={`badge ${r.status === 'fulfilled' ? 'badge-success' : 'badge-warning'}`}>
+                              {r.status.replace('_', ' ')}
+                            </span>
+                          </td>
+                          <td style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{new Date(r.createdAt).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* ── BLOOD SAFETY TAB ─────────────────────────────────────── */}
+            {tab === 'Blood Safety' && bloodSafetyStats && (
+              <div>
+                {/* Safety KPI Cards */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 14, marginBottom: 28 }}>
+                  {[
+                    { label: 'Total Tracked Bags', value: bloodSafetyStats.totalUnits, color: '#dc2626' },
+                    { label: 'Available (Safe)', value: bloodSafetyStats.availableUnits, color: '#059669' },
+                    { label: 'In Quarantine', value: bloodSafetyStats.quarantineUnits, color: '#d97706' },
+                    { label: 'Rejected Flagged', value: bloodSafetyStats.rejectedUnits, color: '#dc2626' },
+                    { label: 'Expired Units', value: bloodSafetyStats.expiredUnits, color: '#64748b' },
+                    { label: 'Expiring in 7 Days', value: bloodSafetyStats.expiringSoon, color: '#ea580c' },
+                    { label: 'Verified Safe Bags', value: bloodSafetyStats.verifiedSafeUnits, color: '#059669' },
+                    { label: 'Safety Pass Ratio', value: `${bloodSafetyStats.safetyPassRate}%`, color: '#2563eb' },
+                  ].map(s => (
+                    <div key={s.label} className="modern-card" style={{ padding: '16px 18px' }}>
+                      <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>{s.label}</div>
+                      <div style={{ fontSize: '1.75rem', fontWeight: 800, color: s.color, marginTop: 4 }}>{s.value}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Table */}
+                <div className="modern-card" style={{ padding: '24px' }}>
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f172a', marginBottom: 16 }}>
+                    Recent Blood Units Quality Audit (Latest 100)
+                  </h3>
+
+                  <div className="table-responsive">
+                    <table className="table-modern">
+                      <thead>
+                        <tr>
+                          <th>Unit ID</th>
+                          <th>Blood Group</th>
+                          <th>Component</th>
+                          <th>Status</th>
+                          <th>Lab Verified</th>
+                          <th>Expiry Date</th>
+                          <th>Hospital</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {bloodUnits.map(u => {
+                          const daysUntilExpiry = Math.floor((new Date(u.expiryDate) - new Date()) / (1000 * 60 * 60 * 24));
+                          const isExpiringSoon = daysUntilExpiry <= 7 && daysUntilExpiry >= 0;
+
+                          return (
+                            <tr key={u._id}>
+                              <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', fontWeight: 700, color: '#2563eb' }}>{u.unitId}</td>
+                              <td><span style={{ fontWeight: 800, color: '#dc2626' }}>{u.bloodGroup}</span></td>
+                              <td style={{ fontSize: '0.85rem' }}>{u.componentType?.replace('_', ' ')}</td>
+                              <td>
+                                <span className={`badge ${u.status === 'available' ? 'badge-success' : u.status === 'rejected' ? 'badge-danger' : 'badge-warning'}`}>
+                                  {u.status}
+                                </span>
+                              </td>
+                              <td>{u.verifiedSafe ? '✅ Verified' : '❌ Pending'}</td>
+                              <td style={{ fontSize: '0.85rem', color: isExpiringSoon ? '#ea580c' : '#475569', fontWeight: isExpiringSoon ? 700 : 400 }}>
+                                {new Date(u.expiryDate).toLocaleDateString()} {isExpiringSoon && `(⚠️ ${daysUntilExpiry}d)`}
+                              </td>
+                              <td style={{ fontSize: '0.85rem', color: '#64748b' }}>{u.hospital?.hospitalName || '—'}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
           </>
         )}
-      </div>
+      </main>
     </div>
   );
 }

@@ -1,16 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-
-const styles = {
-  page: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8f9fa' },
-  card: { background: 'white', borderRadius: 16, padding: 40, width: '100%', maxWidth: 420, boxShadow: '0 4px 24px rgba(0,0,0,0.08)' },
-  title: { fontSize: '1.8rem', fontWeight: 700, color: '#c0392b', marginBottom: 8 },
-  label: { display: 'block', marginBottom: 6, fontWeight: 600, color: '#444', fontSize: '0.9rem' },
-  input: { width: '100%', padding: '12px 16px', borderRadius: 8, border: '1.5px solid #ddd', fontSize: '1rem', marginBottom: 16, outline: 'none' },
-  btn: { width: '100%', padding: '14px', background: '#c0392b', color: 'white', border: 'none', borderRadius: 8, fontSize: '1rem', fontWeight: 700, cursor: 'pointer' },
-  error: { background: '#fdecea', color: '#c0392b', padding: '10px 14px', borderRadius: 8, marginBottom: 16, fontSize: '0.9rem' },
-};
+import Navbar from '../components/Navbar';
 
 const getRedirect = (role) => {
   if (role === 'hospital') return '/hospital/dashboard';
@@ -41,26 +32,119 @@ export default function LoginPage() {
   };
 
   return (
-    <div style={styles.page}>
-      <div style={styles.card}>
-        <h1 style={styles.title}>Sign In</h1>
-        <p style={{ color: '#888', marginBottom: 24 }}>Welcome back to the Blood Donation Platform</p>
-        {error && <div style={styles.error}>{error}</div>}
-        <form onSubmit={handleSubmit}>
-          <label style={styles.label}>Email</label>
-          <input style={styles.input} type="email" value={email}
-            onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required />
-          <label style={styles.label}>Password</label>
-          <input style={styles.input} type="password" value={password}
-            onChange={e => setPassword(e.target.value)} placeholder="Password" required />
-          <button style={styles.btn} type="submit" disabled={loading}>
-            {loading ? 'Signing in...' : 'Sign In'}
-          </button>
-        </form>
-        <p style={{ textAlign: 'center', marginTop: 20, color: '#666' }}>
-          Don't have an account? <Link to="/register" style={{ color: '#c0392b', fontWeight: 600 }}>Register</Link>
-        </p>
-      </div>
+    <div className="page-wrapper">
+      <Navbar />
+
+      <main style={{
+        flex: 1,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '40px 20px',
+      }}>
+        <div className="modern-card" style={{
+          width: '100%',
+          maxWidth: 440,
+          padding: '36px 32px',
+          boxShadow: 'var(--shadow-md)',
+          borderRadius: 16
+        }}>
+          {/* Header */}
+          <div style={{ textAlign: 'center', marginBottom: 28 }}>
+            <div style={{
+              width: 52,
+              height: 52,
+              borderRadius: 14,
+              background: '#fef2f2',
+              color: '#dc2626',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '1.75rem',
+              margin: '0 auto 14px',
+              border: '1px solid #fecaca'
+            }}>
+              🩸
+            </div>
+            <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }}>
+              Welcome Back
+            </h1>
+            <p style={{ color: '#64748b', fontSize: '0.9rem', marginTop: 4 }}>
+              Sign in to manage blood inventory or donation alerts
+            </p>
+          </div>
+
+          {error && (
+            <div style={{
+              backgroundColor: '#fef2f2',
+              border: '1px solid #fecaca',
+              color: '#dc2626',
+              padding: '12px 14px',
+              borderRadius: 8,
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              marginBottom: 20,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8
+            }}>
+              <span>⚠️</span>
+              <span>{error}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit}>
+            <div className="form-group">
+              <label className="form-label">Email Address</label>
+              <input
+                className="form-control"
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="doctor@hospital.org or donor@mail.com"
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <label className="form-label" style={{ margin: 0 }}>Password</label>
+              </div>
+              <input
+                className="form-control"
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={loading}
+              style={{ width: '100%', padding: '12px', marginTop: 8, fontSize: '0.95rem' }}
+            >
+              {loading ? 'Authenticating...' : 'Sign In'}
+            </button>
+          </form>
+
+          <div style={{
+            marginTop: 24,
+            paddingTop: 20,
+            borderTop: '1px solid #f1f5f9',
+            textAlign: 'center',
+            fontSize: '0.875rem',
+            color: '#64748b'
+          }}>
+            Don't have an account?{' '}
+            <Link to="/register" style={{ color: '#dc2626', fontWeight: 700 }}>
+              Create an account
+            </Link>
+          </div>
+        </div>
+      </main>
     </div>
   );
 }

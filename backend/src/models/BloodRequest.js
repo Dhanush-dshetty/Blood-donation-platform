@@ -51,7 +51,22 @@ const bloodRequestSchema = new mongoose.Schema({
   rankingAlgorithm: { type: String, default: 'v2_fairness' },
 
   createdAt: { type: Date, default: Date.now },
-  fulfilledAt: { type: Date }
+  fulfilledAt: { type: Date },
+
+  // Type discriminator — patient_request or inter_hospital_transfer
+  type: {
+    type: String,
+    enum: ['patient_request', 'inter_hospital_transfer'],
+    default: 'patient_request'
+  },
+  // For inter-hospital transfers only
+  requestingHospital: { type: mongoose.Schema.Types.ObjectId, ref: 'Hospital' },
+  transferStatus: {
+    type: String,
+    enum: ['pending', 'accepted', 'rejected', 'completed'],
+    default: 'pending'
+  },
+  transferNote: { type: String },
 });
 
 bloodRequestSchema.index({ status: 1, bloodGroup: 1 });

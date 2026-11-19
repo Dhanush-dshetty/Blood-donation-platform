@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import axios from 'axios';
+import Navbar from '../components/Navbar';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
@@ -12,13 +12,13 @@ const COMPONENT_TYPES = {
   packed_cells: 'Packed Cells'
 };
 
-const STATUS_COLORS = {
-  available: '#27ae60',
-  quarantine: '#f39c12',
-  rejected: '#e74c3c',
-  expired: '#95a5a6',
-  reserved: '#3498db',
-  used: '#7f8c8d'
+const STATUS_CONFIG = {
+  available:  { label: 'Available (Safe)', color: '#059669', bg: '#ecfdf5', border: '#a7f3d0' },
+  quarantine: { label: 'Quarantine',       color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
+  rejected:   { label: 'Rejected',         color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
+  expired:    { label: 'Expired',          color: '#64748b', bg: '#f1f5f9', border: '#cbd5e1' },
+  reserved:   { label: 'Reserved',         color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
+  used:       { label: 'Used',             color: '#94a3b8', bg: '#f8fafc', border: '#e2e8f0' }
 };
 
 export default function BloodSafetyPage() {
@@ -59,7 +59,6 @@ export default function BloodSafetyPage() {
   const handleCreateUnit = async (formData) => {
     try {
       await axios.post(`${API_URL}/blood-units/create`, formData);
-      alert('Blood unit created successfully!');
       setShowCreateModal(false);
       fetchAllUnits();
     } catch (err) {
@@ -92,160 +91,215 @@ export default function BloodSafetyPage() {
     }
   };
 
-  if (loading) {
-    return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div>Loading blood units...</div>
-    </div>;
-  }
-
   return (
-    <div style={{ minHeight: '100vh', background: '#f8f9fa' }}>
-      {/* Header */}
-      <div style={{ background: '#c0392b', color: 'white', padding: '16px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div>
-          <h2 style={{ margin: 0 }}>🩸 Blood Safety & Verification</h2>
-          <div style={{ fontSize: '0.85rem', opacity: 0.9 }}>Automated Compatibility & Safety Checks</div>
-        </div>
-        <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-          <Link to="/hospital/dashboard" style={{ color: 'white', fontWeight: 600 }}>← Dashboard</Link>
-          <button onClick={() => setShowCreateModal(true)}
-            style={{ background: 'white', color: '#c0392b', border: 'none', padding: '8px 16px', borderRadius: 6, fontWeight: 600, cursor: 'pointer' }}>
-            + Register Blood Unit
+    <div className="page-wrapper">
+      <Navbar />
+
+      <main className="content-container">
+        {/* Title */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28, flexWrap: 'wrap', gap: 16 }}>
+          <div>
+            <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }}>
+              Laboratory Blood Safety & Quality Assurance
+            </h1>
+            <p style={{ color: '#64748b', fontSize: '0.9rem', marginTop: 4 }}>
+              Automated serological test verification, component compatibility checking & cold-chain compliance
+            </p>
+          </div>
+
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="btn btn-primary"
+            style={{ padding: '12px 20px', fontSize: '0.95rem' }}
+          >
+            <span>+ Register Blood Unit</span>
           </button>
         </div>
-      </div>
 
-      <div style={{ padding: '32px', maxWidth: 1400, margin: '0 auto' }}>
         {/* Statistics Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 20, marginBottom: 30 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 28 }}>
           {[
-            { label: 'Total Units', value: stats.total || 0, color: '#3498db' },
-            { label: 'Available (Safe)', value: stats.available || 0, color: '#27ae60' },
-            { label: 'In Quarantine', value: stats.quarantine || 0, color: '#f39c12' },
-            { label: 'Rejected', value: stats.rejected || 0, color: '#e74c3c' },
-            { label: 'Expired', value: stats.expired || 0, color: '#95a5a6' }
+            { label: 'Total Tracked Units', value: stats.total || 0, color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
+            { label: 'Available (Safe)', value: stats.available || 0, color: '#059669', bg: '#ecfdf5', border: '#a7f3d0' },
+            { label: 'In Quarantine', value: stats.quarantine || 0, color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
+            { label: 'Rejected / Flagged', value: stats.rejected || 0, color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
+            { label: 'Expired Units', value: stats.expired || 0, color: '#64748b', bg: '#f1f5f9', border: '#cbd5e1' }
           ].map(stat => (
-            <div key={stat.label} style={{ background: 'white', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', borderTop: `4px solid ${stat.color}` }}>
-              <div style={{ fontSize: '2rem', fontWeight: 700, color: stat.color }}>{stat.value}</div>
-              <div style={{ color: '#666', fontSize: '0.9rem', marginTop: 4 }}>{stat.label}</div>
+            <div key={stat.label} className="modern-card" style={{ padding: '18px 20px' }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>{stat.label}</div>
+              <div style={{ fontSize: '1.9rem', fontWeight: 800, color: stat.color, marginTop: 4, lineHeight: 1.1 }}>
+                {stat.value}
+              </div>
             </div>
           ))}
         </div>
 
         {/* Blood Units Table */}
-        <div style={{ background: 'white', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-          <h3 style={{ marginBottom: 20 }}>Blood Units Inventory</h3>
-          
-          {units.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px 0', color: '#aaa' }}>
-              <div style={{ fontSize: '3rem', marginBottom: 12 }}>📦</div>
-              <div>No blood units registered yet</div>
-              <button onClick={() => setShowCreateModal(true)}
-                style={{ marginTop: 16, padding: '10px 20px', background: '#c0392b', color: 'white', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}>
-                Register First Unit
-              </button>
+        <div className="modern-card" style={{ padding: '24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+            <div>
+              <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f172a' }}>
+                Blood Units Inventory
+              </h2>
+              <p style={{ color: '#64748b', fontSize: '0.825rem', marginTop: 2 }}>
+                Individual blood bags, test statuses, days to expiration and cold-chain compliance
+              </p>
+            </div>
+          </div>
+
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '48px 0', color: '#64748b' }}>
+              <div style={{ width: 40, height: 40, border: '4px solid #fecaca', borderTopColor: '#dc2626', borderRadius: '50%', margin: '0 auto 12px', animation: 'spin 0.8s linear infinite' }} />
+              <div>Loading laboratory records...</div>
+            </div>
+          ) : units.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '60px 0', color: '#64748b' }}>
+              <div style={{ fontSize: '3rem', marginBottom: 10 }}>📦</div>
+              <div style={{ fontWeight: 700, color: '#0f172a' }}>No blood units registered yet</div>
+              <p style={{ fontSize: '0.875rem', marginTop: 4 }}>
+                Click "+ Register Blood Unit" above to add laboratory records.
+              </p>
             </div>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <div className="table-responsive">
+              <table className="table-modern">
                 <thead>
-                  <tr style={{ background: '#f8f9fa', borderBottom: '2px solid #eee' }}>
-                    {['Unit ID', 'Blood Group', 'Component', 'Status', 'Safety Tests', 'Expiry', 'Temp', 'Actions'].map(h => (
-                      <th key={h} style={{ padding: '12px', textAlign: 'left', fontWeight: 600, fontSize: '0.85rem', color: '#666' }}>{h}</th>
-                    ))}
+                  <tr>
+                    <th>Unit Barcode ID</th>
+                    <th>Blood Group</th>
+                    <th>Component Type</th>
+                    <th>Safety Status</th>
+                    <th>Infectious Screenings</th>
+                    <th>Days to Expiry</th>
+                    <th>Storage Temp</th>
+                    <th>Lab Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {units.map(unit => (
-                    <tr key={unit._id} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                      <td style={{ padding: '12px', fontFamily: 'monospace', fontWeight: 600, color: '#2980b9' }}>
-                        {unit.unitId}
-                      </td>
-                      <td style={{ padding: '12px' }}>
-                        <span style={{ background: '#fff0f0', color: '#c0392b', padding: '4px 10px', borderRadius: 4, fontWeight: 700 }}>
-                          {unit.bloodGroup}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px', fontSize: '0.9rem' }}>
-                        {COMPONENT_TYPES[unit.componentType]}
-                      </td>
-                      <td style={{ padding: '12px' }}>
-                        <span style={{ 
-                          background: `${STATUS_COLORS[unit.status]}22`, 
-                          color: STATUS_COLORS[unit.status], 
-                          padding: '4px 10px', 
-                          borderRadius: 12, 
-                          fontSize: '0.8rem', 
-                          fontWeight: 600 
-                        }}>
-                          {unit.status.toUpperCase()}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px' }}>
-                        {unit.safetyTests.allTestsPassed ? (
-                          <span style={{ color: '#27ae60', fontWeight: 600 }}>✅ Passed</span>
-                        ) : (
-                          <span style={{ color: '#e74c3c', fontWeight: 600 }}>
-                            {unit.safetyTests.hiv.result === 'pending' ? '⏳ Pending' : '❌ Failed'}
+                  {units.map(unit => {
+                    const scfg = STATUS_CONFIG[unit.status] || STATUS_CONFIG.quarantine;
+                    const isAllPassed = unit.safetyTests?.allTestsPassed;
+
+                    return (
+                      <tr key={unit._id}>
+                        <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: '#2563eb', fontWeight: 700 }}>
+                          {unit.unitId}
+                        </td>
+                        <td>
+                          <span style={{ fontWeight: 800, color: '#dc2626', fontSize: '1.05rem' }}>
+                            {unit.bloodGroup}
                           </span>
-                        )}
-                      </td>
-                      <td style={{ padding: '12px' }}>
-                        <div style={{ fontSize: '0.85rem' }}>
-                          {unit.daysUntilExpiry < 0 ? (
-                            <span style={{ color: '#e74c3c', fontWeight: 600 }}>Expired</span>
+                        </td>
+                        <td style={{ color: '#334155', fontSize: '0.875rem' }}>
+                          {COMPONENT_TYPES[unit.componentType] || unit.componentType}
+                        </td>
+                        <td>
+                          <span style={{
+                            display: 'inline-flex',
+                            padding: '3px 10px',
+                            borderRadius: 9999,
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            color: scfg.color,
+                            backgroundColor: scfg.bg,
+                            border: `1px solid ${scfg.border}`
+                          }}>
+                            {scfg.label}
+                          </span>
+                        </td>
+                        <td>
+                          {isAllPassed ? (
+                            <span style={{ color: '#059669', fontWeight: 700, fontSize: '0.85rem' }}>✓ All Screenings Passed</span>
                           ) : (
-                            <span style={{ color: unit.daysUntilExpiry <= 2 ? '#e67e22' : '#27ae60' }}>
-                              {unit.daysUntilExpiry} days
+                            <span style={{ color: '#dc2626', fontWeight: 600, fontSize: '0.85rem' }}>
+                              {unit.safetyTests?.hiv?.result === 'pending' ? '⏳ Pending Lab Tests' : '❌ Failed Screenings'}
                             </span>
                           )}
-                        </div>
-                      </td>
-                      <td style={{ padding: '12px' }}>
-                        {unit.storage.currentTemperature ? (
-                          <span style={{ color: unit.isTemperatureCompliant ? '#27ae60' : '#e74c3c', fontSize: '0.85rem', fontWeight: 600 }}>
-                            {unit.storage.currentTemperature}°C {unit.isTemperatureCompliant ? '✓' : '⚠️'}
-                          </span>
-                        ) : (
-                          <span style={{ color: '#aaa', fontSize: '0.85rem' }}>N/A</span>
-                        )}
-                      </td>
-                      <td style={{ padding: '12px' }}>
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                          <button onClick={() => { setSelectedUnit(unit); setShowTestModal(true); }}
-                            style={{ padding: '4px 10px', background: '#3498db', color: 'white', border: 'none', borderRadius: 4, fontSize: '0.75rem', cursor: 'pointer' }}>
-                            Tests
-                          </button>
-                          <button onClick={() => handleVerify(unit._id)}
-                            style={{ padding: '4px 10px', background: '#27ae60', color: 'white', border: 'none', borderRadius: 4, fontSize: '0.75rem', cursor: 'pointer' }}>
-                            Verify
-                          </button>
-                          <button onClick={() => { setSelectedUnit(unit); setShowCompatModal(true); }}
-                            style={{ padding: '4px 10px', background: '#9b59b6', color: 'white', border: 'none', borderRadius: 4, fontSize: '0.75rem', cursor: 'pointer' }}>
-                            Check
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td style={{ fontSize: '0.875rem' }}>
+                          {unit.daysUntilExpiry < 0 ? (
+                            <span style={{ color: '#dc2626', fontWeight: 700 }}>Expired</span>
+                          ) : (
+                            <span style={{ color: unit.daysUntilExpiry <= 3 ? '#ea580c' : '#059669', fontWeight: 600 }}>
+                              {unit.daysUntilExpiry} days remaining
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+                          {unit.storage?.currentTemperature ? (
+                            <span style={{ color: unit.isTemperatureCompliant ? '#059669' : '#dc2626' }}>
+                              {unit.storage.currentTemperature}°C {unit.isTemperatureCompliant ? '✓' : '⚠️'}
+                            </span>
+                          ) : (
+                            <span style={{ color: '#94a3b8' }}>N/A</span>
+                          )}
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <button
+                              onClick={() => { setSelectedUnit(unit); setShowTestModal(true); }}
+                              className="btn btn-secondary"
+                              style={{ padding: '5px 10px', fontSize: '0.75rem' }}
+                              title="Update Lab Tests"
+                            >
+                              Tests
+                            </button>
+                            <button
+                              onClick={() => handleVerify(unit._id)}
+                              className="btn btn-outline-primary"
+                              style={{ padding: '5px 10px', fontSize: '0.75rem' }}
+                              title="Verify Quality Standards"
+                            >
+                              Verify
+                            </button>
+                            <button
+                              onClick={() => { setSelectedUnit(unit); setShowCompatModal(true); }}
+                              className="btn btn-secondary"
+                              style={{ padding: '5px 10px', fontSize: '0.75rem' }}
+                              title="Cross-match compatibility"
+                            >
+                              Cross-Match
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           )}
         </div>
-      </div>
+      </main>
 
-      {/* Modals */}
+      {/* Create Unit Modal */}
       {showCreateModal && <CreateUnitModal onClose={() => setShowCreateModal(false)} onCreate={handleCreateUnit} />}
-      {showTestModal && selectedUnit && <TestResultsModal unit={selectedUnit} onClose={() => { setShowTestModal(false); setSelectedUnit(null); }} onUpdate={fetchAllUnits} />}
-      {showVerifyModal && verificationResult && <VerificationModal result={verificationResult} onClose={() => { setShowVerifyModal(false); setVerificationResult(null); }} />}
-      {showCompatModal && !compatResult && selectedUnit && <CompatibilityCheckModal unit={selectedUnit} onClose={() => { setShowCompatModal(false); setSelectedUnit(null); }} onCheck={handleCheckCompatibility} />}
-      {showCompatModal && compatResult && <CompatibilityResultModal result={compatResult} onClose={() => { setShowCompatModal(false); setCompatResult(null); setSelectedUnit(null); }} />}
+
+      {/* Safety Test Results Modal */}
+      {showTestModal && selectedUnit && (
+        <TestResultsModal unit={selectedUnit} onClose={() => { setShowTestModal(false); setSelectedUnit(null); }} onUpdate={fetchAllUnits} />
+      )}
+
+      {/* Verification Result Modal */}
+      {showVerifyModal && verificationResult && (
+        <VerificationModal result={verificationResult} onClose={() => { setShowVerifyModal(false); setVerificationResult(null); }} />
+      )}
+
+      {/* Compatibility Check Modal */}
+      {showCompatModal && !compatResult && selectedUnit && (
+        <CompatibilityCheckModal unit={selectedUnit} onClose={() => { setShowCompatModal(false); setSelectedUnit(null); }} onCheck={handleCheckCompatibility} />
+      )}
+
+      {/* Compatibility Result Modal */}
+      {showCompatModal && compatResult && (
+        <CompatibilityResultModal result={compatResult} onClose={() => { setShowCompatModal(false); setCompatResult(null); setSelectedUnit(null); }} />
+      )}
     </div>
   );
 }
 
-// Create Unit Modal
+// ── Modals Redesigned with Unified Design System ─────────────────────────
+
 function CreateUnitModal({ onClose, onCreate }) {
   const [form, setForm] = useState({
     bloodGroup: '',
@@ -259,37 +313,42 @@ function CreateUnitModal({ onClose, onCreate }) {
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-      <div style={{ background: 'white', borderRadius: 16, padding: 32, width: '100%', maxWidth: 500, boxShadow: '0 8px 40px rgba(0,0,0,0.2)' }}>
-        <h2 style={{ marginBottom: 20 }}>Register New Blood Unit</h2>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: 20 }}>
+      <div className="modern-card" style={{ width: '100%', maxWidth: 480, padding: '32px', borderRadius: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>Register New Blood Unit</h2>
+          <button onClick={onClose} style={{ color: '#64748b', fontSize: '1.2rem', cursor: 'pointer' }}>✕</button>
+        </div>
+
         <form onSubmit={handleSubmit}>
-          <label style={{ display: 'block', marginBottom: 5, fontWeight: 600 }}>Blood Group *</label>
-          <select required value={form.bloodGroup} onChange={e => setForm({...form, bloodGroup: e.target.value})}
-            style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #ddd', marginBottom: 16 }}>
-            <option value="">Select Blood Group</option>
-            {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(bg => <option key={bg} value={bg}>{bg}</option>)}
-          </select>
+          <div className="form-group">
+            <label className="form-label">Blood Group *</label>
+            <select required className="form-control" value={form.bloodGroup} onChange={e => setForm({...form, bloodGroup: e.target.value})}>
+              <option value="">Select Blood Group</option>
+              {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(bg => <option key={bg} value={bg}>{bg}</option>)}
+            </select>
+          </div>
 
-          <label style={{ display: 'block', marginBottom: 5, fontWeight: 600 }}>Component Type *</label>
-          <select required value={form.componentType} onChange={e => setForm({...form, componentType: e.target.value})}
-            style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #ddd', marginBottom: 16 }}>
-            {Object.entries(COMPONENT_TYPES).map(([key, label]) => (
-              <option key={key} value={key}>{label}</option>
-            ))}
-          </select>
+          <div className="form-group">
+            <label className="form-label">Component Type *</label>
+            <select required className="form-control" value={form.componentType} onChange={e => setForm({...form, componentType: e.target.value})}>
+              {Object.entries(COMPONENT_TYPES).map(([key, label]) => (
+                <option key={key} value={key}>{label}</option>
+              ))}
+            </select>
+          </div>
 
-          <label style={{ display: 'block', marginBottom: 5, fontWeight: 600 }}>Collection Date *</label>
-          <input type="date" required value={form.collectionDate} onChange={e => setForm({...form, collectionDate: e.target.value})}
-            style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #ddd', marginBottom: 20 }} />
+          <div className="form-group">
+            <label className="form-label">Collection Date *</label>
+            <input className="form-control" type="date" required value={form.collectionDate} onChange={e => setForm({...form, collectionDate: e.target.value})} />
+          </div>
 
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button type="button" onClick={onClose}
-              style={{ flex: 1, padding: '12px', background: '#f0f0f0', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}>
-              Cancel
+          <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
+            <button type="submit" className="btn btn-primary" style={{ flex: 1, padding: '12px' }}>
+              Save Blood Unit
             </button>
-            <button type="submit"
-              style={{ flex: 2, padding: '12px', background: '#c0392b', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}>
-              Create Unit
+            <button type="button" onClick={onClose} className="btn btn-secondary" style={{ flex: 1, padding: '12px' }}>
+              Cancel
             </button>
           </div>
         </form>
@@ -298,23 +357,21 @@ function CreateUnitModal({ onClose, onCreate }) {
   );
 }
 
-// Test Results Modal
 function TestResultsModal({ unit, onClose, onUpdate }) {
   const [tests, setTests] = useState({
-    hiv: unit.safetyTests.hiv.result,
-    hepatitisB: unit.safetyTests.hepatitisB.result,
-    hepatitisC: unit.safetyTests.hepatitisC.result,
-    syphilis: unit.safetyTests.syphilis.result,
-    malaria: unit.safetyTests.malaria.result,
+    hiv: unit.safetyTests?.hiv?.result || 'pending',
+    hepatitisB: unit.safetyTests?.hepatitisB?.result || 'pending',
+    hepatitisC: unit.safetyTests?.hepatitisC?.result || 'pending',
+    syphilis: unit.safetyTests?.syphilis?.result || 'pending',
+    malaria: unit.safetyTests?.malaria?.result || 'pending',
     labId: 'LAB-' + Math.random().toString(36).substr(2, 6).toUpperCase(),
-    testedBy: 'Lab Technician'
+    testedBy: 'Clinical Pathologist'
   });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       await axios.put(`${API_URL}/blood-units/${unit._id}/safety-tests`, tests);
-      alert('Test results updated successfully!');
       onUpdate();
       onClose();
     } catch (err) {
@@ -323,38 +380,40 @@ function TestResultsModal({ unit, onClose, onUpdate }) {
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-      <div style={{ background: 'white', borderRadius: 16, padding: 32, width: '100%', maxWidth: 600, boxShadow: '0 8px 40px rgba(0,0,0,0.2)', maxHeight: '90vh', overflowY: 'auto' }}>
-        <h2 style={{ marginBottom: 10 }}>Safety Test Results</h2>
-        <div style={{ fontSize: '0.9rem', color: '#666', marginBottom: 20 }}>Unit ID: <strong>{unit.unitId}</strong></div>
-        
-        <form onSubmit={handleSubmit}>
-          <div style={{ background: '#fff9e6', padding: 16, borderRadius: 8, marginBottom: 20, fontSize: '0.85rem', color: '#856404' }}>
-            ⚠️ All tests must be NEGATIVE for the unit to be marked as safe
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: 20 }}>
+      <div className="modern-card" style={{ width: '100%', maxWidth: 540, padding: '32px', borderRadius: 16, maxHeight: '90vh', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>Laboratory Serological Results</h2>
+            <div style={{ fontSize: '0.85rem', color: '#64748b' }}>Unit Barcode: <strong style={{ color: '#2563eb' }}>{unit.unitId}</strong></div>
           </div>
+          <button onClick={onClose} style={{ color: '#64748b', fontSize: '1.2rem', cursor: 'pointer' }}>✕</button>
+        </div>
 
+        <div style={{ background: '#fffbeb', border: '1px solid #fde68a', padding: '12px 14px', borderRadius: 8, marginBottom: 20, fontSize: '0.825rem', color: '#92400e' }}>
+          ⚠️ All infectious markers must be confirmed NEGATIVE before a unit transitions from Quarantine to Safe.
+        </div>
+
+        <form onSubmit={handleSubmit}>
           {['hiv', 'hepatitisB', 'hepatitisC', 'syphilis', 'malaria'].map(test => (
-            <div key={test} style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', marginBottom: 5, fontWeight: 600, textTransform: 'capitalize' }}>
-                {test === 'hiv' ? 'HIV' : test.replace(/([A-Z])/g, ' $1')} *
+            <div key={test} className="form-group">
+              <label className="form-label" style={{ textTransform: 'capitalize' }}>
+                {test === 'hiv' ? 'HIV 1 & 2 Antibody' : test.replace(/([A-Z])/g, ' $1')} Screen *
               </label>
-              <select required value={tests[test]} onChange={e => setTests({...tests, [test]: e.target.value})}
-                style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #ddd' }}>
-                <option value="pending">Pending</option>
-                <option value="negative">Negative (Safe)</option>
-                <option value="positive">Positive (Reject)</option>
+              <select className="form-control" required value={tests[test]} onChange={e => setTests({...tests, [test]: e.target.value})}>
+                <option value="pending">Pending Screening ⏳</option>
+                <option value="negative">Negative (Clinically Safe) ✅</option>
+                <option value="positive">Positive (Infection Detected - Reject) ❌</option>
               </select>
             </div>
           ))}
 
-          <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
-            <button type="button" onClick={onClose}
-              style={{ flex: 1, padding: '12px', background: '#f0f0f0', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}>
-              Cancel
+          <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
+            <button type="submit" className="btn btn-primary" style={{ flex: 1, padding: '12px' }}>
+              Save & Auto-Evaluate
             </button>
-            <button type="submit"
-              style={{ flex: 2, padding: '12px', background: '#27ae60', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}>
-              Update & Auto-Verify
+            <button type="button" onClick={onClose} className="btn btn-secondary" style={{ flex: 1, padding: '12px' }}>
+              Cancel
             </button>
           </div>
         </form>
@@ -363,65 +422,57 @@ function TestResultsModal({ unit, onClose, onUpdate }) {
   );
 }
 
-// Verification Result Modal
 function VerificationModal({ result, onClose }) {
+  const isPassed = result.verification?.passed;
+
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-      <div style={{ background: 'white', borderRadius: 16, padding: 32, width: '100%', maxWidth: 700, boxShadow: '0 8px 40px rgba(0,0,0,0.2)', maxHeight: '90vh', overflowY: 'auto' }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: 20 }}>
+      <div className="modern-card" style={{ width: '100%', maxWidth: 600, padding: '32px', borderRadius: 16, maxHeight: '90vh', overflowY: 'auto' }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <div style={{ fontSize: '4rem', marginBottom: 10 }}>
-            {result.verification.passed ? '✅' : '❌'}
-          </div>
-          <h2 style={{ color: result.verification.passed ? '#27ae60' : '#e74c3c', marginBottom: 8 }}>
+          <div style={{ fontSize: '3.5rem', marginBottom: 8 }}>{isPassed ? '✅' : '❌'}</div>
+          <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: isPassed ? '#059669' : '#dc2626' }}>
             {result.message}
           </h2>
-          <div style={{ 
-            background: result.verification.passed ? '#e8f8e8' : '#fdecea', 
-            color: result.verification.passed ? '#27ae60' : '#c0392b',
-            padding: '8px 16px',
-            borderRadius: 8,
-            fontWeight: 600,
-            display: 'inline-block'
-          }}>
-            {result.verification.outcome.toUpperCase()}
+          <div style={{ marginTop: 8 }}>
+            <span className={`badge ${isPassed ? 'badge-success' : 'badge-danger'}`}>
+              Outcome: {result.verification?.outcome?.toUpperCase()}
+            </span>
           </div>
         </div>
 
-        <h3 style={{ marginBottom: 12 }}>Safety Checks Performed:</h3>
-        <div style={{ background: '#f8f9fa', borderRadius: 8, padding: 16, marginBottom: 20 }}>
-          {result.verification.checks.map((check, i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: i < result.verification.checks.length - 1 ? '1px solid #eee' : 'none' }}>
-              <span style={{ fontWeight: 600 }}>{check.checkName}</span>
-              <span style={{ color: check.passed ? '#27ae60' : '#e74c3c' }}>
+        <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0f172a', marginBottom: 10 }}>
+          Verification Checklist:
+        </h3>
+        <div style={{ background: '#f8fafc', borderRadius: 10, padding: 14, border: '1px solid #e2e8f0', marginBottom: 20 }}>
+          {result.verification?.checks?.map((check, i) => (
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: i < result.verification.checks.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+              <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#334155' }}>{check.checkName}</span>
+              <span style={{ fontSize: '0.875rem', fontWeight: 700, color: check.passed ? '#059669' : '#dc2626' }}>
                 {check.passed ? '✓' : '✗'} {check.result}
               </span>
             </div>
           ))}
         </div>
 
-        {result.verification.failures.length > 0 && (
-          <>
-            <h3 style={{ marginBottom: 12, color: '#e74c3c' }}>Issues Found:</h3>
-            <div style={{ background: '#fdecea', borderRadius: 8, padding: 16, marginBottom: 20 }}>
-              <ul style={{ margin: 0, paddingLeft: 20 }}>
-                {result.verification.failures.map((failure, i) => (
-                  <li key={i} style={{ color: '#c0392b', marginBottom: 8 }}>{failure}</li>
-                ))}
-              </ul>
-            </div>
-          </>
+        {result.verification?.failures?.length > 0 && (
+          <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: 14, marginBottom: 20 }}>
+            <div style={{ fontWeight: 700, color: '#dc2626', fontSize: '0.9rem', marginBottom: 6 }}>Quality Violations:</div>
+            <ul style={{ margin: 0, paddingLeft: 18, color: '#991b1b', fontSize: '0.85rem' }}>
+              {result.verification.failures.map((failure, i) => (
+                <li key={i}>{failure}</li>
+              ))}
+            </ul>
+          </div>
         )}
 
-        <button onClick={onClose}
-          style={{ width: '100%', padding: '12px', background: '#3498db', color: 'white', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}>
-          Close
+        <button onClick={onClose} className="btn btn-secondary" style={{ width: '100%', padding: '12px' }}>
+          Dismiss Inspection
         </button>
       </div>
     </div>
   );
 }
 
-// Compatibility Check Modal (Input)
 function CompatibilityCheckModal({ unit, onClose, onCheck }) {
   const [recipientBloodGroup, setRecipientBloodGroup] = useState('');
 
@@ -434,39 +485,33 @@ function CompatibilityCheckModal({ unit, onClose, onCheck }) {
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-      <div style={{ background: 'white', borderRadius: 16, padding: 32, width: '100%', maxWidth: 500, boxShadow: '0 8px 40px rgba(0,0,0,0.2)' }}>
-        <h2 style={{ marginBottom: 20 }}>Transfusion Compatibility Check</h2>
-        
-        <div style={{ background: '#f8f9fa', borderRadius: 8, padding: 16, marginBottom: 20 }}>
-          <div style={{ marginBottom: 8 }}>
-            <strong>Unit ID:</strong> {unit.unitId}
-          </div>
-          <div style={{ marginBottom: 8 }}>
-            <strong>Donor Blood Group:</strong> <span style={{ color: '#c0392b', fontWeight: 700 }}>{unit.bloodGroup}</span>
-          </div>
-          <div>
-            <strong>Component:</strong> {COMPONENT_TYPES[unit.componentType]}
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: 20 }}>
+      <div className="modern-card" style={{ width: '100%', maxWidth: 480, padding: '32px', borderRadius: 16 }}>
+        <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', marginBottom: 16 }}>
+          Transfusion Cross-Match Check
+        </h2>
+
+        <div style={{ background: '#f8fafc', borderRadius: 10, padding: 14, border: '1px solid #e2e8f0', marginBottom: 18 }}>
+          <div style={{ fontSize: '0.85rem', color: '#64748b' }}>Unit Barcode: <strong style={{ color: '#0f172a' }}>{unit.unitId}</strong></div>
+          <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: 4 }}>
+            Donor Group: <strong style={{ color: '#dc2626' }}>{unit.bloodGroup}</strong> ({COMPONENT_TYPES[unit.componentType]})
           </div>
         </div>
 
-        <label style={{ display: 'block', marginBottom: 8, fontWeight: 600 }}>Recipient Blood Group *</label>
-        <select value={recipientBloodGroup} onChange={e => setRecipientBloodGroup(e.target.value)}
-          style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid #ddd', marginBottom: 24, fontSize: '1rem' }}>
-          <option value="">Select Recipient Blood Group</option>
-          {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(bg => (
-            <option key={bg} value={bg}>{bg}</option>
-          ))}
-        </select>
+        <div className="form-group">
+          <label className="form-label">Recipient Patient Blood Group *</label>
+          <select className="form-control" value={recipientBloodGroup} onChange={e => setRecipientBloodGroup(e.target.value)}>
+            <option value="">Select Recipient Blood Group</option>
+            {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(bg => <option key={bg} value={bg}>{bg}</option>)}
+          </select>
+        </div>
 
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button onClick={onClose}
-            style={{ flex: 1, padding: '12px', background: '#f0f0f0', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}>
-            Cancel
-          </button>
-          <button onClick={handleCheck}
-            style={{ flex: 2, padding: '12px', background: '#9b59b6', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}>
+        <div style={{ display: 'flex', gap: 12, marginTop: 22 }}>
+          <button onClick={handleCheck} className="btn btn-primary" style={{ flex: 1, padding: '12px' }}>
             Check Compatibility
+          </button>
+          <button onClick={onClose} className="btn btn-secondary" style={{ flex: 1, padding: '12px' }}>
+            Cancel
           </button>
         </div>
       </div>
@@ -474,77 +519,59 @@ function CompatibilityCheckModal({ unit, onClose, onCheck }) {
   );
 }
 
-// Compatibility Result Modal
 function CompatibilityResultModal({ result, onClose }) {
+  const isCompatible = result.canTransfuse;
+
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-      <div style={{ background: 'white', borderRadius: 16, padding: 32, width: '100%', maxWidth: 700, boxShadow: '0 8px 40px rgba(0,0,0,0.2)', maxHeight: '90vh', overflowY: 'auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <div style={{ fontSize: '4rem', marginBottom: 10 }}>
-            {result.canTransfuse ? '✅' : '⛔'}
-          </div>
-          <h2 style={{ color: result.canTransfuse ? '#27ae60' : '#e74c3c', marginBottom: 8 }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: 20 }}>
+      <div className="modern-card" style={{ width: '100%', maxWidth: 580, padding: '32px', borderRadius: 16, maxHeight: '90vh', overflowY: 'auto' }}>
+        <div style={{ textAlign: 'center', marginBottom: 20 }}>
+          <div style={{ fontSize: '3.5rem', marginBottom: 8 }}>{isCompatible ? '✅' : '⛔'}</div>
+          <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: isCompatible ? '#059669' : '#dc2626' }}>
             {result.recommendation}
           </h2>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
-          <div style={{ background: '#f8f9fa', borderRadius: 8, padding: 16 }}>
-            <div style={{ fontSize: '0.85rem', color: '#888', marginBottom: 4 }}>Donor Blood Group</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#c0392b' }}>{result.bloodUnit.bloodGroup}</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
+          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: 14, textAlign: 'center' }}>
+            <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Donor Blood Group</div>
+            <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#dc2626', marginTop: 2 }}>{result.bloodUnit?.bloodGroup}</div>
           </div>
-          <div style={{ background: '#f8f9fa', borderRadius: 8, padding: 16 }}>
-            <div style={{ fontSize: '0.85rem', color: '#888', marginBottom: 4 }}>Recipient Blood Group</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#2980b9' }}>{result.recipient.bloodGroup}</div>
-          </div>
-        </div>
-
-        <div style={{ marginBottom: 20 }}>
-          <h3 style={{ marginBottom: 12 }}>Compatibility Status:</h3>
-          <div style={{ display: 'flex', gap: 16 }}>
-            <div style={{ flex: 1, background: result.compatible ? '#e8f8e8' : '#fdecea', padding: 16, borderRadius: 8 }}>
-              <div style={{ fontWeight: 600, marginBottom: 4 }}>Blood Group</div>
-              <div style={{ color: result.compatible ? '#27ae60' : '#e74c3c', fontWeight: 600 }}>
-                {result.compatible ? '✓ Compatible' : '✗ Incompatible'}
-              </div>
-            </div>
-            <div style={{ flex: 1, background: result.safetyPassed ? '#e8f8e8' : '#fdecea', padding: 16, borderRadius: 8 }}>
-              <div style={{ fontWeight: 600, marginBottom: 4 }}>Safety Tests</div>
-              <div style={{ color: result.safetyPassed ? '#27ae60' : '#e74c3c', fontWeight: 600 }}>
-                {result.safetyPassed ? '✓ All Passed' : '✗ Failed'}
-              </div>
-            </div>
+          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: 14, textAlign: 'center' }}>
+            <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Recipient Patient</div>
+            <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#2563eb', marginTop: 2 }}>{result.recipient?.bloodGroup}</div>
           </div>
         </div>
 
-        <h3 style={{ marginBottom: 12 }}>Detailed Checks:</h3>
-        <div style={{ background: '#f8f9fa', borderRadius: 8, padding: 16, marginBottom: 20 }}>
-          {result.safetyChecks.map((check, i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: i < result.safetyChecks.length - 1 ? '1px solid #eee' : 'none' }}>
-              <span>{check.checkName}</span>
-              <span style={{ color: check.passed ? '#27ae60' : '#e74c3c', fontWeight: 600 }}>
-                {check.passed ? '✓' : '✗'} {check.result}
-              </span>
-            </div>
-          ))}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+          <div style={{
+            padding: 12,
+            borderRadius: 8,
+            background: result.compatible ? '#ecfdf5' : '#fef2f2',
+            border: `1px solid ${result.compatible ? '#a7f3d0' : '#fecaca'}`,
+            color: result.compatible ? '#065f46' : '#991b1b',
+            fontSize: '0.875rem',
+            fontWeight: 700,
+            textAlign: 'center'
+          }}>
+            ABO/Rh: {result.compatible ? '✓ Compatible' : '✗ Incompatible'}
+          </div>
+          <div style={{
+            padding: 12,
+            borderRadius: 8,
+            background: result.safetyPassed ? '#ecfdf5' : '#fef2f2',
+            border: `1px solid ${result.safetyPassed ? '#a7f3d0' : '#fecaca'}`,
+            color: result.safetyPassed ? '#065f46' : '#991b1b',
+            fontSize: '0.875rem',
+            fontWeight: 700,
+            textAlign: 'center'
+          }}>
+            Safety Screenings: {result.safetyPassed ? '✓ Passed' : '✗ Failed'}
+          </div>
         </div>
 
-        {result.issues.length > 0 && (
-          <>
-            <h3 style={{ marginBottom: 12, color: '#e74c3c' }}>⚠️ Issues:</h3>
-            <div style={{ background: '#fdecea', borderRadius: 8, padding: 16, marginBottom: 20 }}>
-              <ul style={{ margin: 0, paddingLeft: 20 }}>
-                {result.issues.map((issue, i) => (
-                  <li key={i} style={{ color: '#c0392b', marginBottom: 8 }}>{issue}</li>
-                ))}
-              </ul>
-            </div>
-          </>
-        )}
-
-        <button onClick={onClose}
-          style={{ width: '100%', padding: '12px', background: result.canTransfuse ? '#27ae60' : '#e74c3c', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}>
-          Close
+        <button onClick={onClose} className="btn btn-secondary" style={{ width: '100%', padding: '12px' }}>
+          Close Result
         </button>
       </div>
     </div>
